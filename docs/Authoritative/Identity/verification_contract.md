@@ -23,7 +23,7 @@ git diff --check
 git diff --cached --check
 ```
 
-The checker covers Markdown under `docs/` and root `AGENTS.md`. It checks front matter, date/status/tag fields, heading hierarchy, explicit-anchor collisions, and repository-local link targets and fragments. It ignores fenced examples and excludes same-line inline code spans from link checks. It does not fetch external URLs, inspect design collections, or evaluate engineering and gameplay meaning.
+The checker covers Markdown under `docs/` and root `AGENTS.md`. It checks front matter, date/status/tag fields, heading hierarchy, explicit-anchor collisions, and repository-local link targets, exact path-component casing, and fragments. It ignores fenced examples and excludes same-line inline code spans from link checks. It does not fetch external URLs, inspect design collections, or evaluate engineering and gameplay meaning.
 
 The regression suite runs the checker CLI against test-owned temporary handbook fixtures and checks both success and failure diagnostics. It does not change the repository handbook. Whitespace checks apply to unstaged and staged tracked changes respectively. Inspect `git status --short` and the explicit file inventory as well: a clean diff command does not prove that untracked files were reviewed or included.
 
