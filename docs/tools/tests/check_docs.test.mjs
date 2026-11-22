@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,7 +12,7 @@ const metadata = [
   'status: APPROVED', 'tags: [fixture, handbook]', '---', '',
 ].join('\n');
 
-function check(t, content, extraFile) {
+function makeFixture(t, content, extraFile) {
   const root = mkdtempSync(join(tmpdir(), 'koios-check-docs-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(join(root, 'docs'));
@@ -20,10 +20,18 @@ function check(t, content, extraFile) {
   writeFileSync(join(root, 'docs', 'README.md'), content);
   writeFileSync(join(root, 'docs', 'Target.md'), `${metadata}# Target\n\n## Details\n\n## Details\n`);
   if (extraFile) writeFileSync(join(root, 'docs', extraFile), 'fixture');
+  return root;
+}
+
+function runChecker(root) {
   const result = spawnSync(process.execPath, [checker, root], { encoding: 'utf8' });
   assert.ifError(result.error);
   assert.equal(result.signal, null);
   return result;
+}
+
+function check(t, content, extraFile) {
+  return runChecker(makeFixture(t, content, extraFile));
 }
 
 function passes(result) {
@@ -128,3 +136,36 @@ for (const [name, destination, diagnostic] of rawDestinations) {
     assert.match(result.stderr, diagnostic);
   });
 };
+
+test('local links require exact filename and directory spelling', t => {
+  const root = makeFixture(t, `${metadata}# Handbook\n`);
+  const docs = join(root, 'docs');
+  mkdirSync(join(docs, 'Section'));
+  writeFileSync(join(docs, 'Section', 'Link Target.md'), `${metadata}# Target\n`);
+  const fileAlias = existsSync(join(docs, 'Section', 'link Target.md'));
+  const directoryAlias = existsSync(join(docs, 'section', 'Link Target.md'));
+  t.diagnostic(`platform=${process.platform}; native wrong-case filename lookup=${fileAlias}; directory lookup=${directoryAlias}`);
+  const source = join(docs, 'README.md');
+  const cases = [
+    ['../docs/./Section/Link%20Target.md#target', 0, null],
+    ['Section/Absent.md', 1, /missing link target: Section\/Absent\.md/],
+    ['Section/link%20Target.md#target', 1, fileAlias ? /link path casing differs/ : /missing link target/],
+    ['section/Link%20Target.md#target', 1, directoryAlias ? /link path casing differs/ : /missing link target/],
+  ];
+  const results = cases.map(([link, status, diagnostic]) => {
+    writeFileSync(source, `${metadata}# Handbook\n\n[Link](${link})\n`);
+    const result = runChecker(root);
+    t.diagnostic(`${link}: checker exit=${result.status}`);
+    return { link, status, diagnostic, result };
+  });
+  for (const { link, status, diagnostic, result } of results) {
+    assert.equal(result.status, status, link);
+    if (diagnostic) {
+      assert.match(result.stderr, /^docs\/README\.md:/);
+      assert.match(result.stderr, diagnostic);
+      assert.ok(result.stderr.includes(link), result.stderr);
+    } else {
+      assert.match(result.stdout, /1 local links checked/);
+    }
+  }
+});

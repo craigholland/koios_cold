@@ -179,6 +179,11 @@ class HandbookValidator {
             this.error(path, `link resolves outside repository: ${raw}`);
             continue;
           }
+          if (!this.hasExactPathSpelling(target)) {
+            this.error(path, `link path casing differs: ${raw}`);
+            continue;
+          }
+
           if (fragment && extname(target) === '.md' && !this.inspect(target, false).anchors.has(fragment)) {
             this.error(path, `missing heading/anchor: ${raw}`);
           }
@@ -187,6 +192,17 @@ class HandbookValidator {
         }
       }
     }
+  }
+
+  hasExactPathSpelling(target) {
+    const pathFromRoot = relative(this.root, target);
+    if (!pathFromRoot) return true;
+    let parent = this.root;
+    for (const component of pathFromRoot.split(sep)) {
+      if (!readdirSync(parent).includes(component)) return false;
+      parent = resolve(parent, component);
+    }
+    return true;
   }
 
   contains(path) {
