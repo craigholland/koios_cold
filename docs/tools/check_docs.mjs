@@ -27,6 +27,35 @@ function visibleLines(text) {
   });
 }
 
+function maskInlineCode(line) {
+  const runs = [...line.matchAll(/`+/g)];
+  const nextByLength = new Map();
+  const closing = [];
+  for (let i = runs.length - 1; i >= 0; i--) {
+    const length = runs[i][0].length;
+    closing[i] = nextByLength.get(length);
+    nextByLength.set(length, i);
+  }
+
+  const parts = [];
+  let cursor = 0;
+  for (let i = 0; i < runs.length; i++) {
+    const start = runs[i].index;
+    const endRun = closing[i];
+    if (endRun === undefined) continue;
+    let before = start;
+    while (before > 0 && line[before - 1] === '\\') before--;
+    if ((start - before) % 2 !== 0) continue;
+
+    const end = runs[endRun].index + runs[endRun][0].length;
+    parts.push(line.slice(cursor, start), ' '.repeat(end - start));
+    cursor = end;
+    i = endRun;
+  }
+  parts.push(line.slice(cursor));
+  return parts.join('');
+}
+
 function headingSlug(text) {
   return text.replace(/<[^>]*>/g, '').toLowerCase()
     .replace(/[^\p{L}\p{N}\p{M}_\-\s]/gu, '').replace(/\s/g, '-');
@@ -106,7 +135,7 @@ class HandbookValidator {
   checkLinks(path, document) {
     const links = /!?\[[^\]]*\]\((?:<([^>]+)>|([^\s)]+))(?:\s+["'][^"']*["'])?\)/g;
     for (const line of document.lines) {
-      for (const match of line.matchAll(links)) {
+      for (const match of maskInlineCode(line).matchAll(links)) {
         const raw = match[1] ?? match[2];
         if (/^[a-z][a-z\d+.-]*:/i.test(raw) || raw.startsWith('//')) continue;
         this.linkCount++;

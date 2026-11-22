@@ -65,3 +65,36 @@ for (const [name, header, body, diagnostic] of bad) {
     assert.match(result.stderr, diagnostic);
   });
 };
+
+test('literal inline code links are ignored', t => {
+  const lines = [
+    '# Handbook',
+    'Literal example: `[Example](does-not-exist.md)`.',
+    '`[First](first.md)` and `` ` [Second](second.md) ``.',
+    '`` `[Exact match](exact.md)` ``` ``',
+    '[`Code label`](Target.md#details)',
+    '',
+  ];
+  passes(check(t, metadata + lines.join('\n')));
+});
+
+const visibleLinks = [
+  ['after closed code', '`[Hidden](hidden.md)` [Visible](visible.md)',
+    /missing link target: visible\.md/],
+  ['after unmatched delimiter', '` no closing delimiter [Visible](Target.md#absent)',
+    /missing heading\/anchor: Target\.md#absent/],
+  ['after unmatched longer delimiter', '`` unmatched `[Hidden](hidden.md)` [Visible](visible.md)',
+    /missing link target: visible\.md/],
+  ['after escaped delimiter', '\\` [Visible](visible.md) `',
+    /missing link target: visible\.md/],
+];
+
+for (const [name, line, diagnostic] of visibleLinks) {
+  test(`rendered link ${name} still fails validation`, t => {
+    const result = check(t, `${metadata}# Handbook\n\n${line}\n`);
+    assert.equal(result.status, 1, result.stdout || result.stderr);
+    assert.match(result.stderr, /docs\/README\.md:/);
+    assert.match(result.stderr, diagnostic);
+    assert.doesNotMatch(result.stderr, /missing link target: hidden\.md/);
+  });
+};

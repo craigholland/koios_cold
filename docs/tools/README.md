@@ -14,4 +14,4 @@ Run `node --test docs/tools/tests/check_docs.test.mjs` from the repository root 
 
 The tool checks `docs/**/*.md` and root `AGENTS.md` with Node's standard library. It does not access the network or external source collections. [The verification contract](../Authoritative/Identity/verification_contract.md) defines the checks' scope and limits; [the local contract](../__ai__.md) governs maintenance.
 
-Use ordinary inline Markdown links and ATX headings in the handbook. Fenced examples are excluded from heading/link checks. The validator handles automatic duplicate-heading suffixes and explicit HTML `id`/`name` anchors. It is a scoped handbook checker, not a complete Markdown renderer or a general repository audit.
+Use ordinary inline Markdown links and ATX headings in the handbook. Fenced examples are excluded from heading and link checks. Local link checks also ignore literal links inside same-line code spans delimited by matching backtick runs. The validator handles automatic duplicate-heading suffixes and explicit HTML `id`/`name` anchors. It is a scoped handbook checker, not a complete Markdown renderer or a general repository audit.
