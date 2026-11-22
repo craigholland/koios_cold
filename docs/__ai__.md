@@ -15,7 +15,7 @@ No hosted CI is configured by this handbook. Local validation and the checked co
 ## Scope
 
 - Folder: `docs/` and its descendants.
-- Included: handbook Markdown and `tools/check_docs.mjs`.
+- Included: handbook Markdown, `tools/check_docs.mjs`, and its regression suite.
 - Related entry point: root `AGENTS.md`, checked by the same validator.
 - Excluded: other project families, archives, assets, credentials, and application runtime code.
 
@@ -35,7 +35,7 @@ Provide durable development guidance and a small, dependency-free checker for th
 ## Allowed Dependencies
 
 - Handbook: relative links to committed documentation and explicit path inventories for not-yet-published owners.
-- Checker: Node.js standard library only.
+- Checker and regression suite: Node.js standard library only. The suite exercises the CLI in temporary fixtures.
 - No dependency on another checkout, private chat history, provider SDK, or secret.
 
 ## Public API / Key Exports
@@ -49,6 +49,7 @@ Provide durable development guidance and a small, dependency-free checker for th
 - `Authoritative/Canon/Architecture/`: reusable architectural guidance and supplements.
 - `Authoritative/Identity/`: Koios development profile, role workflow, and check requirements.
 - `tools/check_docs.mjs`: scoped metadata, heading, and repository-local link validation.
+- `tools/tests/check_docs.test.mjs`: subprocess regression tests for the checker CLI.
 
 ## Known Gaps / Future-State Notes
 
@@ -66,6 +67,7 @@ Provide durable development guidance and a small, dependency-free checker for th
 
 ```text
 node docs/tools/check_docs.mjs
+node --test docs/tools/tests/check_docs.test.mjs
 git diff --check
 git diff --cached --check
 ```
