@@ -1,0 +1,56 @@
+---
+title: "Koios Development Verification Contract"
+created_date: 2026-11-21
+update_date: 2026-11-21
+status: DRAFT
+tags: [documentation-validation, executable-checks, verification-evidence, test-readiness, final-head-freshness]
+---
+
+# Koios Development Verification Contract
+
+This document owns runnable development checks and their evidence expectations. Game Design acceptance requirements and Software Architecture's fixture specifications remain with their source owners. A written test requirement is not an executed test.
+
+## Available Handbook Checks
+
+Prerequisites: Git and a supported Node.js LTS. The checker uses only Node's standard library and needs no dependency installation.
+
+Run from the repository root:
+
+```text
+node docs/tools/check_docs.mjs
+git diff --check
+git diff --cached --check
+```
+
+The checker covers Markdown under `docs/` and root `AGENTS.md`. It checks front matter, date/status/tag fields, heading hierarchy, explicit-anchor collisions, and repository-local link targets and fragments. It ignores fenced examples and does not fetch external URLs, inspect design collections, or evaluate engineering and gameplay meaning.
+
+Whitespace checks apply to unstaged and staged tracked changes respectively. Inspect `git status --short` and the explicit file inventory as well: a clean diff command does not prove that untracked files were reviewed or included.
+
+## Semantic Documentation Review
+
+Review scope and accuracy in addition to mechanical checks:
+
+- Each detailed rule has a clear owner and cross-references remain navigable.
+- Canon stays portable and Identity contains the actual Koios choices.
+- Documents distinguish accepted requirements, draft policies, unresolved inputs, and implemented behavior.
+- Local contracts describe current responsibilities rather than a progress log.
+- Agent roles, actual authentication, technical permissions, and delegated authority remain distinct.
+- A fresh contributor can locate the actual design sources required by the task.
+
+## Application Verification Readiness
+
+This handbook does not configure a Python runtime, install packages, build Godot, or create application CI. Existing authoring-workspace tests and technical fixture specifications do not establish that they are present or executable in the initial GitHub clone.
+
+When application work is authorized, its task must establish the supported environment, dependency installation, and exact checks. The intended Python baseline is Ruff, mypy, and pytest, with headless domain tests, service tests through explicit fakes, and boundary/integration checks appropriate to the change.
+
+Godot presentation and continuous physics need their own scoped verification. A headless simulation pass does not establish rendering, control responsiveness, sound quality, or end-to-end bridge correctness. Inference behavior and provider availability need separately scoped checks and authored fallback coverage when implemented.
+
+Do not present proposed baseline commands as runnable until their configuration exists. Do not run deferred builds or fixtures merely because another document describes them.
+
+## Evidence and Freshness
+
+For a PR, report the exact commands, cwd, results, checked commit, current head, and meaningful limitations. Keep secrets and live private payloads out of transcripts. A blocked or skipped check remains blocked or skipped.
+
+If the branch changes after checking, inspect the intervening paths and determine which checks and review need refreshing. Verify the remote PR head after push. Hosted CI that does not exist or did not run cannot be claimed as passing.
+
+Checks support author handoff and independent review. They do not themselves approve a PR, authorize a merge, adopt new design rules, or authorize a release.
