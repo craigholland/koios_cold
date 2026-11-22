@@ -2,7 +2,7 @@
 title: "Craig Architecture"
 created_date: 2026-11-21
 update_date: 2026-11-21
-status: DRAFT
+status: APPROVED
 tags: [craig-architecture, clean-architecture, solid, domain-modeling, dependency-injection, deterministic-state]
 ---
 

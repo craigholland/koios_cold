@@ -2,8 +2,8 @@
 title: "Koios Agent Development Workflow"
 created_date: 2026-11-21
 update_date: 2026-11-21
-status: DRAFT
-tags: [agent-workflow, github-identities, task-intake, code-review, handoff, owner-authority, merge-scope]
+status: APPROVED
+tags: [agent-workflow, github-identities, task-intake, code-review, handoff, owner-authority, development-integration, release-promotion, version-tags]
 ---
 
 # Koios Agent Development Workflow
@@ -44,11 +44,30 @@ Do not overwrite another contributor's work or stage unrelated files. Missing de
 
 ## Branch and PR Practice
 
-Initially, use one task branch and one coherent PR into the agreed base branch, normally `main`. A descriptive name such as `codex/docs-development-handbook` identifies bounded intent. Create nested Story/Epic branches only when a scoped plan establishes that ladder.
+| Branch | Purpose | Incoming work |
+| --- | --- | --- |
+| `development` | Default branch and integration surface for active development. | Reviewed task PRs. |
+| Task branches | Bounded implementation, documentation, or repair work based on current `development`. | In-scope implementation slices; PRs target `development`. |
+| `main` | Latest stable released state. | Authorized promotion of a stable `development` candidate. |
+
+Use one task branch and one coherent PR into `development`. A descriptive name such as `codex/development-release-workflow` identifies bounded intent. Create nested Story/Epic branches only when a scoped plan establishes that ladder; their eventual integration target remains `development`.
 
 Work in small implementation slices. Stage the task's explicit paths, inspect the staged diff, and keep the PR title and body aligned with the final change. Include related local contract updates and the checks needed for the changed scope.
 
-Push without rewriting shared history. If the remote head or base has moved, inspect the change and integrate it deliberately before making a readiness claim.
+Push task branches without rewriting shared history. Routine task work must not be pushed directly to `main`. If the remote head or base has moved, inspect the change and integrate it deliberately before making a readiness claim.
+
+## Release Promotion
+
+When `development` reaches a stable condition suitable for a release:
+
+1. Identify the candidate commit, intended release scope, verification results, and any outstanding limitations for Craig's release decision.
+2. Open a promotion PR from `development` to `main`. Review the complete release delta rather than treating a single task's checks as proof of the entire candidate.
+3. Merge the promotion when Craig approves the release or explicitly delegates that exact operation. New development after the candidate was checked requires a freshness assessment before promotion.
+4. Create the agreed version tag on the resulting released commit on `main`. Confirm that the tag resolves to that commit. Choose the version as part of the release decision; do not invent a version or tag an unapproved development head.
+
+`development` remains the default branch after release. Keep its history reconciled with the release result before further integration when the chosen merge method creates a different history. No force push or release tag rewrite is implied by this workflow.
+
+Establishing these branch roles does not itself declare a software release, create a tag, or authorize a promotion now. Release approval, merge execution, and tagging remain within their explicitly authorized scope.
 
 ## Review and Rework
 

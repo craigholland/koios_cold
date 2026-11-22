@@ -2,7 +2,7 @@
 title: "Craig Architecture Python Guidance"
 created_date: 2026-11-21
 update_date: 2026-11-21
-status: DRAFT
+status: APPROVED
 tags: [python, src-layout, domain-types, protocols, dependency-injection, testing, module-cohesion]
 ---
 

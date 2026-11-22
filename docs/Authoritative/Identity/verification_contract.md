@@ -2,7 +2,7 @@
 title: "Koios Development Verification Contract"
 created_date: 2026-11-21
 update_date: 2026-11-21
-status: DRAFT
+status: APPROVED
 tags: [documentation-validation, executable-checks, verification-evidence, test-readiness, final-head-freshness]
 ---
 
@@ -35,6 +35,7 @@ Review scope and accuracy in addition to mechanical checks:
 - Documents distinguish accepted requirements, draft policies, unresolved inputs, and implemented behavior.
 - Local contracts describe current responsibilities rather than a progress log.
 - Agent roles, actual authentication, technical permissions, and delegated authority remain distinct.
+- Task PRs target `development`; release promotion and tags follow the owning agent workflow.
 - A fresh contributor can locate the actual design sources required by the task.
 
 ## Application Verification Readiness
@@ -49,7 +50,9 @@ Do not present proposed baseline commands as runnable until their configuration 
 
 ## Evidence and Freshness
 
-For a PR, report the exact commands, cwd, results, checked commit, current head, and meaningful limitations. Keep secrets and live private payloads out of transcripts. A blocked or skipped check remains blocked or skipped.
+For a PR, report the exact commands, cwd, results, checked commit, current head, base branch, and meaningful limitations. Keep secrets and live private payloads out of transcripts. A blocked or skipped check remains blocked or skipped.
+
+Task verification covers the change against its `development` base. A release candidate needs verification appropriate to the complete promoted state and an exact commit record under [Release Promotion](agent_workflow.md#release-promotion). A task check or the existence of a version tag alone does not establish release readiness.
 
 If the branch changes after checking, inspect the intervening paths and determine which checks and review need refreshing. Verify the remote PR head after push. Hosted CI that does not exist or did not run cannot be claimed as passing.
 

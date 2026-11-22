@@ -2,7 +2,7 @@
 title: "Koios Development Profile"
 created_date: 2026-11-21
 update_date: 2026-11-21
-status: DRAFT
+status: APPROVED
 tags: [koios-runtime, python-simulation, godot-presentation, authoritative-state, prototype-boundaries, source-availability]
 ---
 

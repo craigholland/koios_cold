@@ -2,7 +2,7 @@
 title: "Handbook Validation Tool"
 created_date: 2026-11-21
 update_date: 2026-11-21
-status: DRAFT
+status: APPROVED
 tags: [documentation-tooling, markdown-links, heading-validation, metadata-validation, local-checks]
 ---
 

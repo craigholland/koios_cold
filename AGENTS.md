@@ -2,8 +2,8 @@
 title: "Coding Agent Entry Point"
 created_date: 2026-11-21
 update_date: 2026-11-21
-status: DRAFT
-tags: [coding-agents, required-reading, task-scope, development-workflow, source-ownership]
+status: APPROVED
+tags: [coding-agents, required-reading, task-scope, development-workflow, branch-policy, source-ownership]
 ---
 
 # Coding Agent Entry Point
@@ -31,6 +31,10 @@ Read [the development handbook](docs/README.md) before changing this repository.
 - Use the GitHub identity assigned to your role. Keep keys and tokens outside the repository and out of command output, logs, issues, and PRs.
 - Merge, release, publication of additional source collections, and changes to project policy require the applicable task or Owner authorization. App permissions alone do not grant those decisions.
 
-## Bootstrap Scope
+## Branch Direction
 
-This handbook establishes development guidance. It does not authorize construction of the game, enact a release process, or publish the existing design and asset collections. The [development profile](docs/Authoritative/Identity/development_profile.md#design-source-availability) explains how an implementation task obtains its authoritative inputs.
+Start task branches from current `development` and target their PRs to `development`, the default integration branch. `main` holds the latest stable release. Follow the [branch and release workflow](docs/Authoritative/Identity/agent_workflow.md#branch-and-pr-practice) for promotion and version tagging.
+
+## Scope
+
+This handbook establishes development guidance and the adopted branch workflow. It does not authorize construction of the game or publish the existing design and asset collections. The [development profile](docs/Authoritative/Identity/development_profile.md#design-source-availability) explains how an implementation task obtains its authoritative inputs.
