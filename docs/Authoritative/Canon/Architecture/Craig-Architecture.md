@@ -1,7 +1,7 @@
 ---
 title: "Craig Architecture"
 created_date: 2026-11-21
-update_date: 2026-11-21
+update_date: 2026-11-22
 status: APPROVED
 tags: [craig-architecture, clean-architecture, solid, domain-modeling, dependency-injection, deterministic-state]
 ---
@@ -68,6 +68,8 @@ Prefer explicit state transitions with reproducible inputs and outputs. Supply t
 Make units, rounding, ordering, and failure behavior explicit where they matter. Determinism supports diagnosis, replay, simulation, and meaningful automated tests; it does not imply that every external physical or provider event is deterministic.
 
 ## Code Shape and Evolution
+
+Physical organization is an architectural choice. Make it easy for a person or an AI contributor to find a concept, identify its owner, recognize its public contract, and locate relevant tests. Organize by responsibility first, then by subject where that adds clarity. Consistent names and local contracts make the same concept traceable across layers without making their types interchangeable or requiring every repository to use the same tree.
 
 Keep modules cohesive and files reviewable. A large service, broad folder, or brittle helper chain is a prompt to identify a missing object, policy, contract, or bounded module.
 

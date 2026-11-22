@@ -1,7 +1,7 @@
 ---
 title: "Development Handbook Local Contract"
 created_date: 2026-11-21
-update_date: 2026-11-21
+update_date: 2026-11-22
 status: APPROVED
 tags: [local-contract, handbook-maintenance, documentation-validation, source-boundaries, developer-tools]
 ---
@@ -26,7 +26,7 @@ Provide durable development guidance and a small, dependency-free checker for th
 ## Architectural Rules
 
 - Canon owns reusable coding philosophy; Identity applies it to Koios.
-- Preserve the established subject owners named by the development profile.
+- Preserve the established subject owners named by the development profile. [Source organization](Authoritative/Identity/source_organization.md) owns the concrete Koios layout; keep entry points as navigation and distinguish planned homes from this contract's current scope.
 - `Authoritative/Identity/agent_workflow.md` owns the development/release branch policy; other handbook pages summarize it and link to that owner.
 - Keep new policies proposed until adopted within their stated scope.
 - Reconcile whole affected sections for current truth. Keep task history and check evidence in task/PR records.
@@ -47,7 +47,7 @@ Provide durable development guidance and a small, dependency-free checker for th
 
 - `README.md`: contributor navigation and handbook scope.
 - `Authoritative/Canon/Architecture/`: reusable architectural guidance and supplements.
-- `Authoritative/Identity/`: Koios development profile, role workflow, and check requirements.
+- `Authoritative/Identity/`: Koios development profile, source organization, role workflow, and check requirements.
 - `tools/check_docs.mjs`: scoped metadata, heading, and repository-local link validation.
 - `tools/tests/check_docs.test.mjs`: subprocess regression tests for the checker CLI.
 

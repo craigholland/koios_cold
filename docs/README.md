@@ -1,7 +1,7 @@
 ---
 title: "Development Handbook"
 created_date: 2026-11-21
-update_date: 2026-11-21
+update_date: 2026-11-22
 status: APPROVED
 tags: [development-handbook, contributor-onboarding, coding-standards, agent-collaboration, documentation-navigation]
 ---
@@ -17,6 +17,7 @@ This is the starting point for building Koios Cold. It brings the coding philoso
 | [Authoritative documentation](Authoritative/README.md) | Separates reusable engineering guidance from Koios-specific application and task records. |
 | [Architecture index](Authoritative/Canon/Architecture/README.md) | Locates Craig Architecture and its coding, planning, AI-guidance, and local-contract supplements. |
 | [Development profile](Authoritative/Identity/development_profile.md) | Applies the philosophy to Koios's simulation, presentation, source owners, and prototype boundaries. |
+| [Source organization](Authoritative/Identity/source_organization.md) | Defines where Koios application responsibilities, local contracts, and tests should live. |
 | [Agent workflow](Authoritative/Identity/agent_workflow.md) | Defines Craig, Lead Engineer, and Dot responsibilities, task intake, review, and handoff. |
 | [Verification contract](Authoritative/Identity/verification_contract.md) | Distinguishes executable checks from future verification requirements. |
 | [Local handbook contract](__ai__.md) | Defines this folder's maintenance and verification rules. |
