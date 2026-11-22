@@ -2,7 +2,7 @@
 title: "Koios Development Identity"
 created_date: 2026-11-21
 update_date: 2026-11-21
-status: DRAFT
+status: APPROVED
 tags: [koios-development, project-bindings, simulation-boundaries, agent-roles, executable-verification]
 ---
 

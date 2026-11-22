@@ -2,7 +2,7 @@
 title: "Development Handbook Local Contract"
 created_date: 2026-11-21
 update_date: 2026-11-21
-status: DRAFT
+status: APPROVED
 tags: [local-contract, handbook-maintenance, documentation-validation, source-boundaries, developer-tools]
 ---
 
@@ -27,6 +27,7 @@ Provide durable development guidance and a small, dependency-free checker for th
 
 - Canon owns reusable coding philosophy; Identity applies it to Koios.
 - Preserve the established subject owners named by the development profile.
+- `Authoritative/Identity/agent_workflow.md` owns the development/release branch policy; other handbook pages summarize it and link to that owner.
 - Keep new policies proposed until adopted within their stated scope.
 - Reconcile whole affected sections for current truth. Keep task history and check evidence in task/PR records.
 - The checker is developer tooling; it must not import game code, inspect credentials, call the network, or traverse outside its supplied repository root.
