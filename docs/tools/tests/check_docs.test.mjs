@@ -12,13 +12,14 @@ const metadata = [
   'status: APPROVED', 'tags: [fixture, handbook]', '---', '',
 ].join('\n');
 
-function check(t, content) {
+function check(t, content, extraFile) {
   const root = mkdtempSync(join(tmpdir(), 'koios-check-docs-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(join(root, 'docs'));
   writeFileSync(join(root, 'AGENTS.md'), `${metadata}# Entry\n`);
   writeFileSync(join(root, 'docs', 'README.md'), content);
   writeFileSync(join(root, 'docs', 'Target.md'), `${metadata}# Target\n\n## Details\n\n## Details\n`);
+  if (extraFile) writeFileSync(join(root, 'docs', extraFile), 'fixture');
   const result = spawnSync(process.execPath, [checker, root], { encoding: 'utf8' });
   assert.ifError(result.error);
   assert.equal(result.signal, null);
@@ -96,5 +97,34 @@ for (const [name, line, diagnostic] of visibleLinks) {
     assert.match(result.stderr, /docs\/README\.md:/);
     assert.match(result.stderr, diagnostic);
     assert.doesNotMatch(result.stderr, /missing link target: hidden\.md/);
+  });
+};
+
+test('literal backticks in ordinary and angle-bracket destinations preserve valid links', t => {
+  const lines = [
+    '# Handbook',
+    '[Ordinary](target`file`.txt)',
+    '[Angle](<target`file`.txt>)',
+    '[`Code with ] inside`](Target.md#details)',
+    '',
+  ];
+  const result = check(t, metadata + lines.join('\n'), 'target`file`.txt');
+  passes(result);
+  assert.match(result.stdout, /3 local links checked/);
+});
+
+const rawDestinations = [
+  ['ordinary missing', 'missing`file`.md', /missing link target: missing`file`\.md/],
+  ['angle-bracket missing', '<missing`file`.md>', /missing link target: missing`file`\.md/],
+  ['ordinary escape', '../../outside`file`.md', /link escapes repository: \.\.\/\.\.\/outside`file`\.md/],
+  ['angle-bracket escape', '<../../outside`file`.md>', /link escapes repository: \.\.\/\.\.\/outside`file`\.md/],
+];
+
+for (const [name, destination, diagnostic] of rawDestinations) {
+  test(`${name} destination keeps literal backticks`, t => {
+    const result = check(t, `${metadata}# Handbook\n\n[\`Code label\`](${destination})\n`);
+    assert.equal(result.status, 1, result.stdout || result.stderr);
+    assert.match(result.stderr, /^docs\/README\.md:/);
+    assert.match(result.stderr, diagnostic);
   });
 };
