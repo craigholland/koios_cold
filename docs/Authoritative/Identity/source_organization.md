@@ -55,9 +55,9 @@ The frontend can compose concepts from multiple Python capabilities. It need not
 
 ## Worked Navigation: Battery Status
 
-This is a placement example, not a battery specification, implementation requirement, or API design. Before changing any rule, locate the [actual owning requirements](development_profile.md#design-source-availability) named in the task.
+This is a placement example, not a battery specification, implementation requirement, or API design. Start with the actual battery engineering document in `systems_architecture/` at the ref or workspace location supplied by the task. If the task changes player behavior, follow its `game_design/` requirements too. The [design-source availability rules](development_profile.md#design-source-availability) explain how to obtain these owners; they are not published by this standard.
 
 1. Start at `simulation/src/koios_sim/domain/electrical/` for battery concepts, authoritative state and rules. An inward repository contract, if needed by this capability, belongs there.
 2. Follow the shared capability name to `services/electrical/` for the battery-status query or command workflow, and `database/electrical/` for a stored record, mapping, and repository implementation if persistence is in scope. Concrete wiring belongs at `composition/`.
-3. Follow the published command/query/event seam from Python's `interfaces/` to Godot's `frontend/contracts/` and `frontend/bridge/`. Find the display projection at `frontend/view_models/` and the player-facing panel under `frontend/features/`. Neither is a battery-state owner.
+3. Follow the planned public command/query/event seam from Python's `interfaces/` to Godot's `frontend/contracts/` and `frontend/bridge/`. Find the display projection at `frontend/view_models/` and the player-facing panel under `frontend/features/`. Neither is a battery-state owner.
 4. Read the nearest `__ai__.md` for the relevant scope, then locate the matching capability under `simulation/tests/domain/`, `simulation/tests/services/` or `simulation/tests/database/`, and the feature under `frontend/tests/`. A contract or test path is planned until a task creates it.
