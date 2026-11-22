@@ -1,0 +1,19 @@
+# Python local environments and caches
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Editor and engine local state
+.idea/
+.godot/
+
+# Local environment overrides and GitHub App keys
+.env
+.env.*
+!.env.example
+*.private-key.pem
