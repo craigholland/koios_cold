@@ -1,7 +1,7 @@
 ---
 title: "Development Handbook Local Contract"
 created_date: 2026-11-21
-update_date: 2026-11-22
+update_date: 2026-11-23
 status: APPROVED
 tags: [local-contract, handbook-maintenance, documentation-validation, source-boundaries, developer-tools]
 ---
@@ -54,7 +54,7 @@ Provide durable development guidance and a small, dependency-free checker for th
 ## Known Gaps / Future-State Notes
 
 - The existing design families may be available only in the full authoring workspace until separately published.
-- Application dependency installation, Python quality gates, Godot checks, and hosted CI remain separate implementation tasks.
+- The simulation owns its Python setup and quality checks; the handbook validates links, not application behavior. Godot checks and hosted CI are not configured here.
 - This contract governs the initial handbook tree. Add narrower contracts when a distinct implementation concern warrants one.
 
 ## Cross-Folder Contracts

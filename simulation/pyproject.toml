@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "koios-sim"
+version = "0.1.0"
+description = "Koios Cold headless development simulation"
+requires-python = ">=3.14,<3.15"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["ruff>=0.14,<1", "mypy>=1.19,<2", "pytest>=9,<10"]
+
+[project.scripts]
+koios-m0 = "koios_sim.composition.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"koios_sim.composition" = ["fixtures/*.json"]
+
+[tool.ruff]
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
