@@ -44,4 +44,5 @@ offset_right = 776.0
 offset_bottom = 603.0
 placeholder_text = "Enter a command: move 1 R2, open D1, or help"
 max_length = 512
+keep_editing_on_text_submit = true
 editable = false

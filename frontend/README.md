@@ -40,10 +40,17 @@ semantic session. Type `move 1 R2`, wait for D1, use `status 1` or
 opening and Python confirms actual arrival. Close the scene window to end
 the launcher. Relaunch to reset the entire fixture (not a player save or recovery feature).
 
-Pending requests are never replayed. If the command is locally busy, the
-input is retained for a deliberate retry. If the backend goes away before
-acknowledgement, the scene remains responsive, freezes at its last confirmed
-state and disables submission. Start a fresh fixture to continue.
+Enter echoes each captured line in the transcript with a `>` prompt. The local
+buffer holds up to four waiting lines in entry order, in addition to a command
+already awaiting acknowledgement. They send automatically as the bridge becomes
+available. Enter keeps the field ready for the next line. The activity strip labels
+waiting console lines separately; local capture is not Python acceptance.
+If the buffer is full, the new line remains in the input field for deliberate retry.
+
+On connection loss, lines still held locally are reported as not sent. A line
+handed to the bridge without a verified response is reported as not confirmed.
+The scene stays responsive, freezes at its last confirmed state, and disables
+submission. Start a fresh fixture to continue; no line is replayed automatically.
 
 ## Views, controls and focus
 
@@ -129,6 +136,8 @@ $launcher = 'from koios_sim.composition.live import launch; import sys; sys.exit
 & $python -c $launcher $console --headless --path frontend --script res://tests/handoff_checks.gd -- --sensing
 & $python -c $launcher $console --headless --path frontend --script res://tests/conformance_checks.gd
 & $python -c $launcher $console --headless --path frontend --script res://tests/conformance_checks.gd -- --interruption
+& $python -c $launcher $console --headless --path frontend --script res://tests/command_console_checks.gd
+& $python -c $launcher $console --headless --path frontend --script res://tests/command_console_checks.gd -- --loss
 & $python -c $launcher $godot --log-file frontend/.godot/m0-mix-log.txt --path frontend --script res://tests/conformance_checks.gd -- --measure-audio
 ```
 
