@@ -7,6 +7,17 @@
     "idle_w": 10,
     "travel_w": 50
   },
+  "sensing": {
+    "reach_m": 6,
+    "light_m": 4.5,
+    "half_angle_deg": 54,
+    "speed_m_s": 5,
+    "turn_deg_s": 120,
+    "body_radius_m": 0.21428571428571427,
+    "markers": [
+      {"id": "M0-MARKER", "point": [14, 1]}
+    ]
+  },
   "rooms": [
     {
       "id": "R1",

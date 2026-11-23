@@ -34,6 +34,9 @@ developer fixture files from inward layers or create an independent frontend wor
 - `services/traversal/session.py` and `orders.py`: one live semantic state, clock and work.
 - `services/traversal/commands.py` and `contracts.py`: identity binding, structured requests,
   feedback and physical reports.
+- `domain/traversal/observation.py` and `manual.py`: bounded sensing/occlusion,
+  and manual pose geometry. `services/traversal/manual_control.py` reconciles
+  only the active direct-control lease; the session owns discovery and authority.
 - `interfaces/cli.py`: developer JSON status output; `interfaces/operations.py`: grammar.
 - `composition/replay.py`: deterministic developer command and physical-event replay.
 - `composition/live.py`: starts and owns the isolated frontend child and loopback socket.

@@ -15,12 +15,13 @@ func _run() -> void:
 			{"id": "B", "min_corner": _point(2, 0), "max_corner": _point(4, 4)},
 		],
 		"door": {"id": "test", "gap_start": _point(2, 1), "gap_end": _point(2, 3)},
-		"drone": {"location": _point(1, 2), "display_name": "Test body"},
+		"drone": {"location": _point(1, 2), "display_name": "Test body", "heading_degrees": 0},
 	}
 	var view := View.new()
 	root.add_child(view)
 	for aperture in [0.0, 0.1, 1.0]:
-		view.apply({"world": model, "opening_fraction": aperture})
+		view.apply({"world": model, "opening_fraction": aperture,
+			"steering": {"body_radius_m": 9.0 / 42.0}})
 		view.reset_to_confirmed()
 		for _i in range(60):
 			await physics_frame

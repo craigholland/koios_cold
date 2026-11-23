@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 from time import monotonic
 
-from koios_sim.composition.fixture import load_scenario
+from koios_sim.composition.fixture import load_live_scenario
 from koios_sim.interfaces.bridge import Bridge, MessageError
 from koios_sim.interfaces.frames import Decoder, FrameError, encode
 from koios_sim.services.traversal.session import Session
@@ -24,13 +24,20 @@ def serve(client: socket.socket, bridge: Bridge, child: subprocess.Popen[bytes])
             data = client.recv(16_384)
         except TimeoutError:
             continue
+        except ConnectionResetError:
+            return 0
         if not data:
             return 0
         try:
             for request in decoder.feed(data):
                 client.sendall(encode(bridge.handle(request)))
+        except ConnectionError:
+            return 0
         except (FrameError, MessageError) as exc:
-            client.sendall(encode({"kind": "error", "message": str(exc)}))
+            try:
+                client.sendall(encode({"kind": "error", "message": str(exc)}))
+            except ConnectionError:
+                pass
             return 1
     return child.returncode or 0
 
@@ -53,7 +60,7 @@ def launch(argv: list[str], *, startup_seconds: float = 12.0) -> int:
                 # One local frontend only; do not accept reconnects or replay uncertain requests.
                 listener.close()
                 with client:
-                    result = serve(client, Bridge(Session(*load_scenario()), nonce), child)
+                    result = serve(client, Bridge(Session(*load_live_scenario()), nonce), child)
                 if result != 0:
                     # Let the frontend show the failure until the developer closes it.
                     child.wait()
@@ -86,7 +93,13 @@ def main() -> int:
     parser.add_argument("--headless", action="store_true")
     parser.add_argument("--log-file", type=Path, help="Optional Godot log path")
     parser.add_argument("--smoke", action="store_true", help="Run and quit a real traversal demo")
+    parser.add_argument("--control-check", action="store_true", help="Run the input regression")
+    parser.add_argument("--native-focus", action="store_true", help="Verify native window focus")
     args = parser.parse_args()
+    if args.native_focus and (not args.control_check or args.headless):
+        parser.error("--native-focus requires a rendered --control-check")
+    if args.smoke and args.control_check:
+        parser.error("choose a traversal smoke or separate control check")
     project = Path(args.project).resolve()
     godot = Path(args.godot).resolve()
     if not (project / "project.godot").is_file() or not godot.is_file():
@@ -98,6 +111,10 @@ def main() -> int:
         argv.append("--headless")
     if args.smoke:
         argv.extend(["--", "--smoke"])
+    if args.control_check:
+        argv.extend(["--script", "res://tests/control_checks.gd"])
+        if args.native_focus:
+            argv.extend(["--", "--native-focus"])
     try:
         return launch(argv)
     except (OSError, KeyboardInterrupt) as exc:

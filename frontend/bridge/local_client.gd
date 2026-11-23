@@ -101,6 +101,7 @@ func _read_partial() -> void:
 			return
 		pending_sequence = 0
 		live = true
+		message.state["note"] = message.get("note")
 		received.emit(message.state, message.feedback)
 	if frames.failed:
 		_fail("Invalid backend message. Pending work was not confirmed.")

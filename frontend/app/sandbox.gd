@@ -3,6 +3,14 @@ extends Node
 
 const LocalClient = preload("res://bridge/local_client.gd")
 const View = preload("res://features/traversal/room_view.gd")
+const Controls = preload("res://input/m0_controls.gd")
+const Draft = preload("res://input/command_draft.gd")
+var controls := Controls.new()
+var command_draft := Draft.new()
+var local_view := false
+var window_active := true
+var pause_target: Variant = null
+var handoff_pending := false
 const TICK_MS := 50
 const MAX_TICK_MS := 250
 var client := LocalClient.new()
@@ -25,6 +33,8 @@ func _ready() -> void:
 	client.received.connect(_snapshot)
 	client.lost.connect(_lost)
 	command.text_submitted.connect(_submit)
+	command.focus_entered.connect(controls.clear)
+	_load_bindings()
 	client.start(OS.get_environment("KOIOS_M0_PORT").to_int(), OS.get_environment("KOIOS_M0_NONCE"))
 
 
@@ -39,7 +49,7 @@ func _process(delta: float) -> void:
 	clock_buffer = minf(clock_buffer + delta * 1000.0, MAX_TICK_MS)
 	if not client.idle():
 		return
-	if _scripted_smoke():
+	if _scripted_smoke() or _control_requests():
 		return
 	if not pending_event.is_empty():
 		pending_event.stamp_ms = int(state.stamp_ms)
@@ -49,11 +59,20 @@ func _process(delta: float) -> void:
 	if clock_buffer >= TICK_MS:
 		var interval := int(clock_buffer)
 		clock_buffer -= interval
-		client.send("tick", {"elapsed_ms": interval})
+		var tick := {"elapsed_ms": interval}
+		var active: Variant = state.active
+		if active is Dictionary and active.phase == "running" and active.verb == "move" and view.manual_point_is_inside():
+			tick.route_pose = _route_pose(active, interval)
+		client.send("tick", tick)
 
 
 func _physics_process(delta: float) -> void:
-	if not client.live or state.is_empty() or not pending_event.is_empty() or bool(state.paused):
+	if not client.live or state.is_empty() or handoff_pending or not pending_event.is_empty() or bool(state.paused):
+		return
+	if state.manual != null:
+		if _can_steer() and clock_buffer < MAX_TICK_MS - 30:
+			view.steer(controls.direction(), float(state.steering.speed_m_s),
+						float(state.steering.turn_deg_s), delta)
 		return
 	var active: Variant = state.active
 	if not active is Dictionary or active.phase != "running" or active.verb != "move":
@@ -84,6 +103,8 @@ func _physics_process(delta: float) -> void:
 
 
 func _snapshot(next: Dictionary, feedback: Array) -> void:
+	var old_manual: Variant = state.get("manual")
+	handoff_pending = false
 	var active: Variant = next.active
 	if not pending_event.is_empty():
 		# A preceding tick can be in flight when the mover reaches a waypoint.
@@ -94,9 +115,27 @@ func _snapshot(next: Dictionary, feedback: Array) -> void:
 			pending_event.clear()
 	state = next
 	view.apply(state)
+	if old_manual != state.manual:
+		view.reset_to_confirmed(float(state.world.drone.heading_degrees))
+		if state.manual == null:
+			controls.clear()
+	if state.get("note") != null:
+		output.add_text(str(state.note) + "\n")
+		controls.clear()
+		if old_manual != null:
+			view.reset_to_confirmed(float(state.world.drone.heading_degrees))
+	if bool(state.paused):
+		controls.clear()
 	var world: Dictionary = state.world
-	status.text = "Connected | %s | confirmed room %s | %s %s | ship %d ms" % [
-		world.deck_id, world.drone.room_id, world.door.id, world.door.position, int(state.stamp_ms)]
+	var door_status := "no current evidence"
+	if not local_view and state.door_report is Dictionary:
+		door_status = str(state.door_report.position) + " (controller)"
+	elif local_view and state.sensor is Dictionary and bool(state.sensor.door_visible):
+		door_status = str(world.door.position) + " (local)"
+	status.text = "%s | %s | %s (%s) in %s | %s %s | %d ms" % [
+		"Drone" if local_view else "Schematic", "PAUSED" if state.paused else world.deck_id,
+		world.drone.display_name, str(world.drone.slot), world.drone.room_id,
+		world.door.id, door_status, int(state.stamp_ms)]
 	command.editable = true
 	for record: Dictionary in feedback:
 		output.add_text(str(record.text) + "\n")
@@ -111,11 +150,13 @@ func _submit(text: String) -> void:
 	if not pending_event.is_empty() or not client.send("command", {"text": line}):
 		output.add_text("Not sent: wait for the current acknowledgement and press Enter again.\n")
 		return
+	command_draft.submitted(line)
 	command.clear()
 
 
 func _lost(message: String) -> void:
 	pending_event.clear()
+	controls.clear()
 	command.editable = false
 	view.reset_to_confirmed()
 	status.text = "Offline | last confirmed state stays visible"
@@ -123,6 +164,113 @@ func _lost(message: String) -> void:
 	if smoke:
 		push_error(message)
 		get_tree().quit(1)
+
+
+func _can_steer() -> bool:
+	return (window_active and local_view and client.live and not state.is_empty()
+		and not state.paused and pause_target == null and not command.has_focus())
+
+
+func _control_requests() -> bool:
+	var axis := controls.direction()
+	var manual: Variant = state.get("manual")
+	if manual != null:
+		var release := not _can_steer() or axis == Vector2.ZERO
+		if (release or clock_buffer >= TICK_MS) and view.manual_point_is_inside():
+			var elapsed := int(clock_buffer)
+			var point := view.semantic_point()
+			var world: Dictionary = state.world
+			clock_buffer -= elapsed
+			client.send("manual_cycle", {
+				"lease_id": manual, "drone_id": world.drone.permanent_id,
+				"stamp_ms": int(state.stamp_ms), "elapsed_ms": elapsed,
+				"x_m": point.x, "y_m": point.y, "heading": view.heading, "release": release,
+			})
+			controls.armed = false
+			return true
+		if release and not view.manual_point_is_inside():
+			# A boundary sample is not a room. Restore the last accepted pose on release.
+			view.reset_to_confirmed(float(state.world.drone.heading_degrees))
+		return false
+	if pause_target != null:
+		client.send("pause", {"paused": pause_target})
+		pause_target = null
+		return true
+	if controls.armed and _can_steer() and axis != Vector2.ZERO and pending_event.is_empty():
+		var active: Variant = state.active
+		var request := {"drone_id": state.world.drone.permanent_id}
+		if active is Dictionary and active.phase == "running" and active.verb == "move":
+			if not view.manual_point_is_inside():
+				return false
+			var elapsed := int(clock_buffer)
+			request.handoff = _route_pose(active, elapsed)
+			clock_buffer -= elapsed
+		controls.armed = false
+		handoff_pending = client.send("manual_begin", request)
+		return handoff_pending
+	return false
+
+
+func _route_pose(active: Dictionary, elapsed: int) -> Dictionary:
+	var point := view.semantic_point()
+	return {"command_id": active.command_id, "step": int(active.step),
+		"stamp_ms": int(state.stamp_ms), "elapsed_ms": elapsed,
+		"x_m": point.x, "y_m": point.y, "heading": view.heading}
+
+
+func _input(event: InputEvent) -> void:
+	if not is_node_ready() or not event is InputEventKey:
+		return
+	var key := event as InputEventKey
+	var action := controls.action(key)
+	if key.pressed and not key.echo and action == "pause" and client.live:
+		controls.clear()
+		pause_target = not bool(state.paused) if pause_target == null else not bool(pause_target)
+		get_viewport().set_input_as_handled()
+		return
+	if command.has_focus():
+		if key.pressed and not key.echo:
+			match key.keycode:
+				KEY_ESCAPE:
+					command.release_focus()
+					get_viewport().set_input_as_handled()
+				KEY_TAB:
+					var result := Draft.complete(command.text, command.caret_column, state.get("completion", {}))
+					if not result.is_empty():
+						command.text = result.value
+						command.caret_column = result.caret
+					get_viewport().set_input_as_handled()
+				KEY_UP, KEY_DOWN:
+					command.text = command_draft.browse(command.text, -1 if key.keycode == KEY_UP else 1)
+					command.caret_column = command.text.length()
+					get_viewport().set_input_as_handled()
+		return
+	if event.pressed and not event.echo and action in ["schematic", "drone"]:
+		local_view = action == "drone"
+		view.set_view(local_view)
+		controls.clear()
+		get_viewport().set_input_as_handled()
+		return
+	if controls.motion(action, key, _can_steer()):
+		get_viewport().set_input_as_handled()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:
+		window_active = false
+		controls.clear()
+	elif what == NOTIFICATION_APPLICATION_FOCUS_IN or what == NOTIFICATION_WM_WINDOW_FOCUS_IN:
+		window_active = true
+		controls.clear()
+
+
+func _load_bindings() -> void:
+	const PATH := "user://m0-bindings.json"
+	if not FileAccess.file_exists(PATH):
+		return
+	var custom: Variant = JSON.parse_string(FileAccess.get_file_as_string(PATH))
+	if not custom is Dictionary or not controls.remap(custom):
+		output.add_text("Invalid or conflicting bindings; defaults are unchanged.\n")
 
 
 func _scripted_smoke() -> bool:
