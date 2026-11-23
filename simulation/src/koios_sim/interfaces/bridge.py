@@ -1,15 +1,17 @@
 """Adapt local M0 messages to the existing authoritative command/event service."""
 
-from dataclasses import asdict
 from math import isfinite
 from secrets import compare_digest
 from typing import cast
 
-from koios_sim.domain.traversal.observation import observe
 from koios_sim.domain.traversal.operation import Waypoint
 from koios_sim.domain.traversal.world import Point
-from koios_sim.interfaces.operations import USAGE, execute
-from koios_sim.services.traversal.contracts import Feedback, PhysicalEvent
+from koios_sim.interfaces.live_snapshot import encode_feedback, encode_snapshot
+from koios_sim.interfaces.operations import execute
+from koios_sim.services.traversal.contracts import (
+    ManualCycleResult,
+    PhysicalEvent,
+)
 from koios_sim.services.traversal.manual_control import RoutePose
 from koios_sim.services.traversal.session import Session
 
@@ -21,6 +23,12 @@ class MessageError(ValueError):
 
 
 class Bridge:
+    """One authenticated, ordered M0 delivery session over an injected application.
+
+    Owns a connection-local nonce check, sequence and feedback cursor, not ship
+    time, world state or work. A new connection gets a new bridge; rejected
+    protocol messages do not advance its cursor or acknowledge a request.
+    """
     def __init__(self, session: Session, nonce: str) -> None:
         self._session = session
         self._nonce = nonce
@@ -29,6 +37,13 @@ class Bridge:
         self._feedback_cursor = 0
 
     def handle(self, message: dict[str, object]) -> dict[str, object]:
+        """Validate and dispatch one v1 message, then return newly delivered feedback.
+
+        Malformed protocol or rejected physical-completion reports raise MessageError
+        rather than acknowledging the sequence. A valid manual/control request can
+        return an unconfirmed note with an acknowledgement, as distinct from a
+        protocol error. Application feedback remains owned by Session.
+        """
         seq = _int(message, "seq", 1)
         if seq != self._sequence + 1:
             raise MessageError("request sequence mismatch; not executed")
@@ -46,16 +61,13 @@ class Bridge:
             execute(self._session, source, origin="godot")
         elif kind == "tick":
             raw = message.get("route_pose")
-            if raw is None:
-                self._tick(message)
-            else:
-                pose = _route_pose(raw)
-                if pose.elapsed_ms != _int(message, "elapsed_ms", 0):
-                    raise MessageError("pose interval must match tick interval")
-                before = self._session.stamp_ms
-                if not self._session.report_route_pose(pose) and self._session.stamp_ms == before:
-                    # A valid new clock interval still advances if its pose cannot be confirmed.
-                    self._tick(message)
+            pose = None if raw is None else _route_pose(raw)
+            elapsed = _int(message, "elapsed_ms", 0)
+            if pose is not None and pose.elapsed_ms != elapsed:
+                raise MessageError("pose interval must match tick interval")
+            if elapsed > MAX_ADVANCE_MS:
+                raise MessageError("tick exceeds the dev interval limit")
+            self._session.apply_tick(elapsed, pose)
         elif kind == "pause":
             self._session.set_paused(_bool(message, "paused"))
         elif kind == "manual_begin":
@@ -79,81 +91,33 @@ class Bridge:
             "seq": seq,
             "kind": "snapshot",
             "note": note,
-            "state": _snapshot(self._session),
-            "feedback": [_feedback(entry) for entry in feedback[before:]],
+            "state": encode_snapshot(self._session.snapshot()),
+            "feedback": [encode_feedback(entry) for entry in feedback[before:]],
         }
 
     def _manual_cycle(self, message: dict[str, object]) -> bool:
-        session = self._session
+        """Decode transport fields without preempting application admission order."""
         point = Point(_number(message, "x_m"), _number(message, "y_m"))
         heading = _number(message, "heading")
         release = _bool(message, "release")
         lease = _text(message, "lease_id")
         drone = _text(message, "drone_id")
-        if (session.manual is None or session.manual.id != lease
-                or session.manual.drone_id != drone or session.paused
-                or _int(message, "stamp_ms", 0) != session.stamp_ms):
-            return False
-        self._tick(message)
-        return session.report_manual(lease, drone, session.stamp_ms, point, heading,
-                                     release=release)
-
-    def _tick(self, message: dict[str, object]) -> None:
-        elapsed = _int(message, "elapsed_ms", 0)
-        if elapsed > MAX_ADVANCE_MS:
+        # Timing field errors are reported only when the application admits that part of a cycle.
+        stamp = _optional_int(message, "stamp_ms")
+        elapsed = _optional_int(message, "elapsed_ms")
+        interval = elapsed if elapsed is not None and elapsed <= MAX_ADVANCE_MS else None
+        result = self._session.manual_cycle(lease, drone, stamp, interval, point, heading, release=release)
+        if result is ManualCycleResult.INVALID_STAMP:
+            raise MessageError("stamp_ms must be an integer >= 0")
+        if result is ManualCycleResult.INVALID_INTERVAL:
+            if elapsed is None:
+                raise MessageError("elapsed_ms must be an integer >= 0")
             raise MessageError("tick exceeds the dev interval limit")
-        self._session.advance(elapsed)
-
-
-def _feedback(value: Feedback) -> dict[str, object]:
-    return asdict(value)
-
-
-def _snapshot(session: Session) -> dict[str, object]:
-    order = session.order
-    fraction = session.opening_fraction
-    active: dict[str, object] | None = None
-    if order is not None:
-        active = {
-            "command_id": order.command_id,
-            "step": order.index + 1,
-            "phase": order.phase,
-            "verb": order.current.verb,
-            "room_id": order.current.target_id,
-            "checkpoint_seen": order.crossed,
-            "waypoint_ready": order.segment_ms >= session.timing.waypoint_ms,
-        }
-    return {
-        "world": asdict(session.status()),
-        "stamp_ms": session.stamp_ms,
-        "paused": session.paused,
-        "opening_fraction": fraction,
-        "door_activity": _door_activity(session),
-        "door_energy_mj": {
-            "controller": session.controller_energy_mj,
-            "mechanism": session.mechanism_energy_mj,
-        },
-        "active": active,
-        "manual": None if session.manual is None else session.manual.id,
-        **_presentation(session, fraction),
-    }
-
-
-def _door_activity(session: Session) -> dict[str, object] | None:
-    opening = session.opening
-    if opening is not None:
-        return {
-            "command_id": opening.command_id, "phase": "opening",
-            "door_id": session.world.door.id, "origin": opening.origin,
-        }
-    if session.pending_devices:
-        command_id, origin = session.pending_devices[0]
-        return {"command_id": command_id, "phase": "queued",
-                "door_id": session.world.door.id, "origin": origin}
-    return None
+        return result is ManualCycleResult.CONFIRMED
 
 
 def _event(payload: object) -> PhysicalEvent:
+    """Decode a waypoint report; identity, geometry and timing are checked by Session."""
     if not isinstance(payload, dict):
         raise MessageError("expected event object")
     source = cast(dict[str, object], payload)
@@ -206,36 +170,13 @@ def _bool(source: dict[str, object], key: str) -> bool:
     return value
 
 
-def _presentation(session: Session, fraction: float) -> dict[str, object]:
-    world, sensing = session.world, session.sensing
-    facts = world.door.services
-    telemetry = (facts.controller_powered and facts.controller_healthy
-                 and facts.controller_data_connected)
-    door_report = {"position": world.door.position, "stamp_ms": session.stamp_ms,
-                   "source": "controller"} if telemetry else None
-    if sensing is None:
-        return {}
-    has_feed = world.drone.local_dcl_signal and world.drone.workstation_route_available
-    evidence = observe(world, sensing, fraction) if has_feed else None
-    if evidence is not None:
-        session.discovered_markers.update(marker.id for marker in evidence.visible_markers)
-    return {
-        "door_report": door_report,
-        "sensor": asdict(evidence) if evidence is not None else None,
-        "discovered_markers": sorted(session.discovered_markers),
-        "steering": {"speed_m_s": sensing.speed_m_s, "turn_deg_s": sensing.turn_deg_s,
-                     "body_radius_m": sensing.body_radius_m},
-        "completion": {
-            "verbs": sorted(USAGE),
-            "deck": session.context,
-            "slot": str(world.drone.slot),
-            "rooms": [room.id for room in world.rooms],
-            "doors": [world.door.id],
-        },
-    }
+def _optional_int(source: dict[str, object], key: str) -> int | None:
+    value = source.get(key)
+    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None
 
 
 def _route_pose(payload: object) -> RoutePose:
+    """Decode the existing route sample, with the independent wire interval cap."""
     if not isinstance(payload, dict):
         raise MessageError("handoff must be an object")
     handoff = cast(dict[str, object], payload)

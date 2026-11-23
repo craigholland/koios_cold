@@ -23,9 +23,9 @@ def texts(session: Session, source: str) -> list[str]:
 def physical(
     session: Session, waypoint: Waypoint, target: str, point: Point
 ) -> PhysicalEvent:
-    assert session.order is not None
-    return PhysicalEvent(session.order.command_id, session.order.index + 1,
-                         session.world.drone.permanent_id, session.stamp_ms, waypoint, target, point)
+    assert session.snapshot().active is not None
+    return PhysicalEvent(session.snapshot().active.command_id, session.snapshot().active.step,
+                         session.status().drone.permanent_id, session.snapshot().stamp_ms, waypoint, target, point)
 
 
 @pytest.mark.parametrize("verb", ["move", "navigate"])
@@ -36,29 +36,29 @@ def test_wait_then_separate_open_and_report_actual_arrival(verb: str) -> None:
         "RUNNING C1.1: Drone 01 (1); move R2.",
         "WAITING: Drone 01 (1); route blocked by D1. Open or clear the route to resume.",
     ]
-    assert s.order is not None
-    accepted = s.order
-    assert accepted.current.drone_id == s.world.drone.permanent_id
+    assert s.snapshot().active is not None
+    accepted = s.snapshot().active
+    assert accepted.current.drone_id == s.status().drone.permanent_id
     assert accepted.current.address == "m0/R2"
     assert texts(s, "queue show 1")[0].endswith("\n1. move m0/R2")
     assert "; action=waiting; queue=1;" in texts(s, "status all")[0]
-    assert s.order is accepted
+    assert s.snapshot().active == accepted
     assert texts(s, "open d1") == []
-    assert s.world.door.position is DoorPosition.CLOSED
+    assert s.status().door.position is DoorPosition.CLOSED
     s.advance(s.timing.opening_ms - 1)
-    assert s.order is accepted and s.order.phase is Phase.WAITING
+    assert s.snapshot().active.command_id == accepted.command_id and s.snapshot().active.phase is Phase.WAITING
     s.advance(1)
-    assert s.order is accepted and s.order.phase is Phase.RUNNING
+    assert s.snapshot().active.command_id == accepted.command_id and s.snapshot().active.phase is Phase.RUNNING
     assert [f.text for f in s.feedback()][-2:] == [
         "OPENED: D1.", "RUNNING C1.1: Drone 01 (1); move R2."
     ]
-    assert s.world.drone.room_id == "R1"
+    assert s.status().drone.room_id == "R1"
 
     s.advance(s.timing.waypoint_ms)
     assert not s.report_physical(physical(s, Waypoint.ARRIVAL, "R2", Point(12, 3)))
     assert not s.report_physical(physical(s, Waypoint.BOUNDARY, "D1", Point(8, 2)))
     boundary = physical(s, Waypoint.BOUNDARY, "D1", Point(8, 3))
-    assert not s.report_physical(replace(boundary, stamp_ms=s.stamp_ms - 1))
+    assert not s.report_physical(replace(boundary, stamp_ms=s.snapshot().stamp_ms - 1))
     assert not s.report_physical(replace(boundary, drone_id="other"))
     assert s.report_physical(boundary)
     assert not s.report_physical(boundary)
@@ -68,12 +68,12 @@ def test_wait_then_separate_open_and_report_actual_arrival(verb: str) -> None:
     arrival = physical(s, Waypoint.ARRIVAL, "R2", Point(12, 3))
     assert s.report_physical(arrival)
     assert not s.report_physical(arrival)
-    assert s.status().drone.room_id == "R2" and s.order is None
+    assert s.status().drone.room_id == "R2" and s.snapshot().active is None
     result = s.feedback()
     assert result[-2].text == "ARRIVED: Drone 01 (1); room=R2."
     assert result[-1].text == "COMPLETED C1: Drone 01 (1); queue empty."
-    assert result[-1].permanent_target_id == s.world.drone.permanent_id
-    assert result[-1].submitted_slot == 1 and result[-1].stamp_ms == s.stamp_ms
+    assert result[-1].permanent_target_id == s.status().drone.permanent_id
+    assert result[-1].submitted_slot == 1 and result[-1].stamp_ms == s.snapshot().stamp_ms
 
 
 @pytest.mark.parametrize(("source", "error"), [
@@ -92,9 +92,9 @@ def test_wait_then_separate_open_and_report_actual_arrival(verb: str) -> None:
 def test_invalid_input_keeps_work(source: str, error: str) -> None:
     s = sandbox()
     execute(s, "move 1 R2")
-    order = s.order
+    order = s.snapshot().active
     assert texts(s, source)[0].startswith(f"ERROR {error}: ")
-    assert s.order is order and s.context == "m0"
+    assert s.snapshot().active == order and s.snapshot().context == "m0"
 
 
 def test_stop_while_waiting_cancels_automatic_resume_but_not_device() -> None:
@@ -106,11 +106,11 @@ def test_stop_while_waiting_cancels_automatic_resume_but_not_device() -> None:
         "STOPPED: Drone 01 (1); current instruction cancelled and queue cleared."
     ]
     s.advance(s.timing.opening_ms)
-    assert s.order is None and s.world.door.position is DoorPosition.OPEN
+    assert s.snapshot().active is None and s.status().door.position is DoorPosition.OPEN
     execute(s, "move 1 R2")
     s.advance(s.timing.waypoint_ms)
-    assert not s.report_physical(replace(stale, stamp_ms=s.stamp_ms))
-    assert s.world.drone.room_id == "R1"
+    assert not s.report_physical(replace(stale, stamp_ms=s.snapshot().stamp_ms))
+    assert s.status().drone.room_id == "R1"
 
 
 def test_pause_queues_and_charges_nothing_until_resumed() -> None:
@@ -124,12 +124,12 @@ def test_pause_queues_and_charges_nothing_until_resumed() -> None:
     assert texts(s, "open D1") == ["QUEUED C2: D1; waiting for ship time to resume."]
     s.advance(123456)
     assert s.status() == initial
-    assert s.stamp_ms == s.controller_energy_mj == s.mechanism_energy_mj == 0
+    assert s.snapshot().stamp_ms == s.snapshot().controller_energy_mj == s.snapshot().mechanism_energy_mj == 0
     assert not s.report_physical(physical(s, Waypoint.ARRIVAL, "R2", Point(12, 3)))
     s.set_paused(False)
     s.advance(s.timing.opening_ms)
-    assert s.order is not None and s.order.phase is Phase.RUNNING
-    assert s.world.door.position is DoorPosition.OPEN
+    assert s.snapshot().active is not None and s.snapshot().active.phase is Phase.RUNNING
+    assert s.status().door.position is DoorPosition.OPEN
 
 
 @pytest.mark.parametrize(("field", "expected"), [
@@ -145,7 +145,7 @@ def test_open_rejects_independent_door_blockers(field: str, expected: str) -> No
     s = Session(replace(world, door=replace(world.door, services=services)), timing)
     assert texts(s, "open D1") == [f"ERROR {expected}"]
     s.advance(100)
-    assert s.world.door.position is DoorPosition.CLOSED and s.mechanism_energy_mj == 0
+    assert s.status().door.position is DoorPosition.CLOSED and s.snapshot().mechanism_energy_mj == 0
 
 
 def test_jammed_mechanism_consumes_only_actual_attempt_energy_and_halts_queue() -> None:
@@ -153,11 +153,11 @@ def test_jammed_mechanism_consumes_only_actual_attempt_energy_and_halts_queue() 
     s = Session(replace(world, door=replace(world.door, jammed=True)), timing)
     execute(s, "open D1; move 1 R2")
     s.advance(timing.opening_ms // 2)
-    assert s.world.door.position is DoorPosition.CLOSED
-    assert s.mechanism_energy_mj == 500 * (timing.opening_ms // 2)
+    assert s.status().door.position is DoorPosition.CLOSED
+    assert s.snapshot().mechanism_energy_mj == 500 * (timing.opening_ms // 2)
     s.advance(timing.opening_ms)
-    assert s.mechanism_energy_mj == 500 * timing.opening_ms
-    assert s.order is not None and s.order.phase is Phase.FAILED
+    assert s.snapshot().mechanism_energy_mj == 500 * timing.opening_ms
+    assert s.snapshot().active is not None and s.snapshot().active.phase is Phase.FAILED
     assert s.feedback()[-1].text == (
         "FAILED C1.1: Drone 01 (1); E_JAMMED: D1 is jammed. "
         "Queue halted; remaining instructions retained."
@@ -167,7 +167,7 @@ def test_jammed_mechanism_consumes_only_actual_attempt_energy_and_halts_queue() 
 
 def test_accounting_is_independent_chunk_invariant_and_capped() -> None:
     a, b = sandbox(), sandbox()
-    initial = to_mj(a.world.drone.charge_wh)
+    initial = to_mj(a.status().drone.charge_wh)
     for s in (a, b):
         execute(s, "move 1 R2")
         execute(s, "open D1")
@@ -176,17 +176,19 @@ def test_accounting_is_independent_chunk_invariant_and_capped() -> None:
     for ms in (100, 241, end - 341):
         b.advance(ms)
     assert a.status() == b.status()
-    assert a.controller_energy_mj == b.controller_energy_mj == end * 20
-    assert a.mechanism_energy_mj == b.mechanism_energy_mj == a.timing.opening_ms * 500
-    assert to_mj(a.world.drone.charge_wh) == (
+    assert a.snapshot().controller_energy_mj == b.snapshot().controller_energy_mj == end * 20
+    assert a.snapshot().mechanism_energy_mj == b.snapshot().mechanism_energy_mj == a.timing.opening_ms * 500
+    assert to_mj(a.status().drone.charge_wh) == (
         initial - a.timing.idle_w * a.timing.opening_ms - a.timing.travel_w * 345
     )
-    tiny = Session(replace(a.world, drone=replace(a.world.drone, charge_wh=1 / MJ_PER_WH)),
-                   a.timing)
+    initial_world, _ = load_scenario()
+    tiny_world = replace(initial_world, door=a.status().door,
+                         drone=replace(a.status().drone, charge_wh=1 / MJ_PER_WH))
+    tiny = Session(tiny_world, a.timing)
     execute(tiny, "move 1 R2")
     tiny.advance(100)
-    assert tiny.world.drone.charge_wh == 0
-    assert tiny.order is not None and tiny.order.phase is Phase.FAILED
+    assert tiny.status().drone.charge_wh == 0
+    assert tiny.snapshot().active is not None and tiny.snapshot().active.phase is Phase.FAILED
     assert not tiny.report_physical(physical(tiny, Waypoint.BOUNDARY, "D1", Point(8, 3)))
 
 
@@ -216,25 +218,25 @@ def test_installed_replay_uses_real_queue() -> None:
 def test_device_step_runs_at_its_turn_and_stale_step_is_rejected() -> None:
     s = sandbox()
     execute(s, "open D1; move 1 R2")
-    assert s.order is not None and s.order.index == 0
-    assert s.world.door.position is DoorPosition.CLOSED
+    assert s.snapshot().active is not None and s.snapshot().active.step == 1
+    assert s.status().door.position is DoorPosition.CLOSED
     s.advance(s.timing.opening_ms)
-    assert s.order.index == 1 and s.world.door.position is DoorPosition.OPEN
+    assert s.snapshot().active.step == 2 and s.status().door.position is DoorPosition.OPEN
     s.advance(s.timing.waypoint_ms)
     checkpoint = physical(s, Waypoint.BOUNDARY, "D1", Point(8, 3))
     assert not s.report_physical(replace(checkpoint, step=1))
     assert s.report_physical(checkpoint)
     s.advance(s.timing.waypoint_ms)
     assert s.report_physical(physical(s, Waypoint.ARRIVAL, "R2", Point(12, 3)))
-    assert s.order is None
+    assert s.snapshot().active is None
 
 
 def test_already_open_steps_do_not_recurse_or_consume_mechanism_energy() -> None:
     world, timing = load_scenario()
     s = Session(replace(world, door=replace(world.door, position=DoorPosition.OPEN)), timing)
     execute(s, "; ".join(["open D1"] * 1200 + ["move 1 R2"]))
-    assert s.order is not None and s.order.index == 1200
-    assert s.mechanism_energy_mj == 0 and s.opening is None
+    assert s.snapshot().active is not None and s.snapshot().active.step == 1201
+    assert s.snapshot().mechanism_energy_mj == 0 and s.snapshot().door_activity is None
 
 
 @pytest.mark.parametrize(("service", "code"), [
@@ -249,48 +251,46 @@ def test_open_interruption_does_not_credit_outage_or_replace_waiting_route(
 ) -> None:
     s = sandbox()
     execute(s, "move 1 R2")
-    route = s.order
+    route = s.snapshot().active
     execute(s, "open D1")
     half = s.timing.opening_ms // 2
     s.advance(half)
-    door = s.world.door
-    s.world = replace(s.world, door=replace(door, services=replace(
-        door.services, **{service: False}
-    )))
+    door = s.status().door
+    s.update_door_services(door.id, replace(door.services, **{service: False}))
     s.advance(s.timing.opening_ms - half - 1)
-    s.world = replace(s.world, door=door)
+    s.update_door_services(door.id, door.services)
     s.advance(1)
-    assert s.world.door.position is DoorPosition.CLOSED
-    assert s.mechanism_energy_mj == 500 * half
-    assert s.order is route and route is not None and route.phase is Phase.WAITING
+    assert s.status().door.position is DoorPosition.CLOSED
+    assert s.snapshot().mechanism_energy_mj == 500 * half
+    assert route is not None and s.snapshot().active == route and route.phase is Phase.WAITING
     failure = s.feedback()[-1]
     assert failure.text.startswith(f"ERROR {code}: ")
     assert failure.stamp_ms == half and failure.command_id == "C2"
 
     execute(s, "open D1")
     s.advance(s.timing.opening_ms)
-    assert s.world.door.position is DoorPosition.OPEN
-    assert s.order is route and route.phase is Phase.RUNNING
-    assert s.mechanism_energy_mj == 500 * (half + s.timing.opening_ms)
+    assert s.status().door.position is DoorPosition.OPEN
+    assert route is not None and s.snapshot().active is not None
+    assert s.snapshot().active.command_id == route.command_id
+    assert s.snapshot().active.phase is Phase.RUNNING
+    assert s.snapshot().mechanism_energy_mj == 500 * (half + s.timing.opening_ms)
 
 
 def test_interrupted_queued_open_halts_and_keeps_remaining_queue() -> None:
     s = sandbox()
     execute(s, "open D1; move 1 R2")
     s.advance(100)
-    door = s.world.door
-    s.world = replace(s.world, door=replace(door, services=replace(
-        door.services, controller_data_connected=False
-    )))
+    door = s.status().door
+    s.update_door_services(door.id, replace(door.services, controller_data_connected=False))
     s.advance(100)
-    s.world = replace(s.world, door=door)
+    s.update_door_services(door.id, door.services)
     s.advance(s.timing.opening_ms)
-    assert s.world.door.position is DoorPosition.CLOSED
-    assert s.order is not None and s.order.phase is Phase.FAILED
+    assert s.status().door.position is DoorPosition.CLOSED
+    assert s.snapshot().active is not None and s.snapshot().active.phase is Phase.FAILED
     assert s.feedback()[-1].stamp_ms == 100
     assert "; E_DATA:" in s.feedback()[-1].text
     assert "2. move m0/R2" in texts(s, "queue show 1")[0]
-    assert s.mechanism_energy_mj == 50_000
+    assert s.snapshot().mechanism_energy_mj == 50_000
 
 
 @pytest.mark.parametrize("charge_mj", [0, 1, 100, 101])
@@ -303,10 +303,10 @@ def test_exhaustion_is_an_exact_timestep_independent_boundary(charge_mj: int) ->
         execute(s, "move 1 R2")
         for part in parts:
             s.advance(part)
-        assert s.order is not None and s.order.phase is Phase.FAILED
-        assert s.stamp_ms == 10 and to_mj(s.world.drone.charge_wh) == 0
+        assert s.snapshot().active is not None and s.snapshot().active.phase is Phase.FAILED
+        assert s.snapshot().stamp_ms == 10 and to_mj(s.status().drone.charge_wh) == 0
         assert s.feedback()[-1].stamp_ms == charge_mj // timing.travel_w
         assert s.feedback()[-1].command_id == "C1"
         assert "E_POWER" in s.feedback()[-1].text
-        assert s.controller_energy_mj == 200 and s.mechanism_energy_mj == 0
+        assert s.snapshot().controller_energy_mj == 200 and s.snapshot().mechanism_energy_mj == 0
     assert sessions[0].feedback() == sessions[1].feedback() == sessions[2].feedback()

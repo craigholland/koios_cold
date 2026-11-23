@@ -63,3 +63,10 @@ class Phase(StrEnum):
     RUNNING = "running"
     WAITING = "waiting"
     FAILED = "failed"
+
+
+class ManualCycleResult(StrEnum):
+    CONFIRMED = "confirmed"
+    UNCONFIRMED = "unconfirmed"
+    INVALID_STAMP = "invalid_stamp"
+    INVALID_INTERVAL = "invalid_interval"

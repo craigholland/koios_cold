@@ -16,7 +16,7 @@ def main() -> int:
     execute(session, "queue show 1", origin="developer")
     execute(session, "open D1", origin="developer")
     session.advance(timing.opening_ms)
-    order = session.order
+    order = session.snapshot().active
     if order is None:
         raise RuntimeError("the destination should still be active")
     gap_a, gap_b = world.door.gap_start, world.door.gap_end
@@ -29,7 +29,7 @@ def main() -> int:
     ):
         session.advance(timing.waypoint_ms)
         if not session.report_physical(PhysicalEvent(
-            order.command_id, 1, world.drone.permanent_id, session.stamp_ms, waypoint,
+            order.command_id, 1, world.drone.permanent_id, session.snapshot().stamp_ms, waypoint,
             target, location,
         )):
             raise RuntimeError(f"developer report rejected: {waypoint}")

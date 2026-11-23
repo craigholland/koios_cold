@@ -31,22 +31,30 @@ developer fixture files from inward layers or create an independent frontend wor
 - `domain/traversal/world.py`: canonical in-memory world and invariant checks.
 - `services/traversal/status.py`: read-only `get_status(world)` application query.
 - `domain/traversal/operation.py`: route, door, fixture timing and resource predicates.
-- `services/traversal/session.py` and `orders.py`: one live semantic state, clock and work.
-- `services/traversal/commands.py` and `contracts.py`: identity binding, structured requests,
-  feedback and physical reports, including heading in live waypoint confirmation.
+- `services/traversal/session.py` owns application operations: atomic command admission,
+  clock and resource accounting, order/opening and lease lifecycle, physical reconciliation,
+  and retained discovery. `orders.py` contains its internal mutable work records.
+- `services/traversal/commands.py` binds addresses against immutable facts and formats
+  Operations inspection without owning work. `contracts.py` defines typed application
+  inputs and results, including physical heading and manual-cycle admission outcomes.
+- `services/traversal/snapshots.py` defines frozen read models for work, door activity,
+  telemetry, steering, current observation and retained discovery. `Session.snapshot()`
+  and `feedback()` do not advance, discover or expose mutable work.
 - `domain/traversal/observation.py` and `manual.py`: bounded sensing/occlusion,
   and manual pose geometry. `services/traversal/manual_control.py` reconciles
   only the active direct-control lease; the session owns discovery and authority.
 - `interfaces/cli.py`: developer JSON status output; `interfaces/operations.py`: grammar.
 - `composition/replay.py`: deterministic developer command and physical-event replay.
 - `composition/live.py`: starts and owns the isolated frontend child and loopback socket.
-- `interfaces/bridge.py` and `interfaces/frames.py`: adapt ordered requests to the same
-  Operations service and serialize confirmed snapshots, timed door work, independent
-  resource counters and feedback. The frontend may display facts, not derive completion.
+- `interfaces/bridge.py` owns ordered wire-v1 delivery, handshake validation,
+  dispatch and feedback delivery cursors; `interfaces/frames.py` owns byte framing.
+  `interfaces/live_snapshot.py` serializes detached values and preserves the
+  optional presentation group. Neither adapter can reconcile physics, discover
+  evidence or advance a second clock.
 - `composition/fixture.py` and `composition/fixtures/m0.json`: decode and instantiate the
   provisional definition; geometry and initial values have one owner.
 - `composition/main.py`: installed developer entry point.
-- `tests/`: fixture, query, dependency direction, and CLI checks.
+- `tests/`: fixture, Operations, application-boundary/wire, AST import-direction and CLI checks.
 
 ## Verification Contract
 

@@ -1,7 +1,6 @@
 """Parse the supported Operations grammar without knowing the world."""
 
 from koios_sim.domain.traversal.operation import Failure
-from koios_sim.services.traversal.commands import submit
 from koios_sim.services.traversal.contracts import Feedback, Request, Verb
 from koios_sim.services.traversal.session import Session
 
@@ -48,9 +47,8 @@ def parse(source: str) -> tuple[Request, ...] | Failure:
 def execute(session: Session, source: str, origin: str = "operations") -> tuple[Feedback, ...]:
     parsed = parse(source)
     if isinstance(parsed, Failure):
-        return (session.emit(session.command_id(), origin, f"ERROR {parsed.code}: {parsed.reason}"),)
+        return (session.record_command_feedback(origin, f"ERROR {parsed.code}: {parsed.reason}"),)
     if len(parsed) == 1 and parsed[0].verb is Verb.HELP:
-        cmd = session.command_id()
         args = parsed[0].args
         if not args:
             text = "COMMANDS Operations: " + ", ".join(sorted(USAGE))
@@ -60,5 +58,5 @@ def execute(session: Session, source: str, origin: str = "operations") -> tuple[
         else:
             _, usage, description, _ = USAGE[args[0]]
             text = f"USAGE: {usage}\n{description}"
-        return (session.emit(cmd, origin, text),)
-    return submit(session, parsed, origin)
+        return (session.record_command_feedback(origin, text),)
+    return session.submit(parsed, origin)
