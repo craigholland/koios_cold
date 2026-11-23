@@ -31,6 +31,9 @@ projections, focused direct controls and bounded local microphone cues.
   and view/connection state; it never owns damage or resource effects.
 - `input/m0_controls.gd`: scoped bindings and fresh-press focus gate.
 - `input/command_draft.gd`: history and draft; inserts only Python-known tokens.
+- `input/command_delivery.gd`: bounded, session-local FIFO waiting for bridge
+  transmission; never owns accepted work, and reports unsent versus unconfirmed
+  lines on loss. The scene echoes captured lines and keeps backend feedback distinct.
 - `bridge/json_frames.gd` and `local_client.gd`: bounded loopback transport,
   one in-flight sequence, errors and uncertain outcomes without replay.
 - `tests/`: executable bridge, movement, focus and integrated conformance checks.

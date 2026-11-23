@@ -6,8 +6,10 @@ const View = preload("res://features/traversal/room_view.gd")
 const Monitor = preload("res://components/audio/drone_monitor.gd")
 const Controls = preload("res://input/m0_controls.gd")
 const Draft = preload("res://input/command_draft.gd")
+const Delivery = preload("res://input/command_delivery.gd")
 var controls := Controls.new()
 var command_draft := Draft.new()
+var command_delivery := Delivery.new()
 var local_view := false
 var window_active := true
 var pause_target: Variant = null
@@ -65,6 +67,8 @@ func _process(delta: float) -> void:
 		client.send("physical", {"event": pending_event})
 		# Wait for confirmation before accepting another physical result.
 		return
+	if command_delivery.send_next(client):
+		return
 	if clock_buffer >= TICK_MS:
 		var interval := int(clock_buffer)
 		clock_buffer -= interval
@@ -102,6 +106,9 @@ func _refresh_activity() -> void:
 	var door_work: Variant = state.get("door_activity")
 	if door_work is Dictionary:
 		items.append("%s %s %s" % [door_work.command_id, door_work.door_id, door_work.phase])
+	var waiting := command_delivery.waiting_count()
+	if waiting > 0:
+		items.append("Console: %d waiting to send" % waiting)
 	if _feed_enabled() and view.motor_strain:
 		items.append("Local drive obstructed")
 	activity.text = " | ".join(items) if not items.is_empty() else "No active work"
@@ -144,6 +151,7 @@ func _move_body(delta: float) -> void:
 
 
 func _snapshot(next: Dictionary, feedback: Array) -> void:
+	command_delivery.acknowledged()
 	var old_manual: Variant = state.get("manual")
 	handoff_pending = false
 	var active: Variant = next.active
@@ -189,14 +197,20 @@ func _submit(text: String) -> void:
 	var line := text.strip_edges()
 	if line.is_empty():
 		return
-	if not pending_event.is_empty() or not client.send("command", {"text": line}):
-		output.add_text("Not sent: wait for the current acknowledgement and press Enter again.\n")
+	if not client.live:
+		output.add_text("Console offline: command is still in input.\n")
 		return
+	if not command_delivery.capture(line):
+		output.add_text("Console transmission buffer full: command is still in input.\n")
+		return
+	output.add_text("> " + line + "\n")
 	command_draft.submitted(line)
 	command.clear()
 
 
 func _lost(message: String) -> void:
+	for notice in command_delivery.disconnect_notices():
+		output.add_text(notice + "\n")
 	pending_event.clear()
 	controls.clear()
 	monitor.silence()
