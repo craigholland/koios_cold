@@ -169,10 +169,9 @@ func _run() -> void:
 
 	if not await _until(func(): return app.state.manual == null, "final release confirmed"):
 		return
-	app.client.close()
 	print("M0_CONTROL_CHECKS_OK: live state, focused text/draft, pause, fresh input and " +
 		("native Windows focus" if native else "simulated window focus"))
-	quit()
+	app.shutdown()
 
 
 func _idle() -> void:

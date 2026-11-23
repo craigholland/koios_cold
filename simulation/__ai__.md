@@ -41,7 +41,8 @@ developer fixture files from inward layers or create an independent frontend wor
 - `composition/replay.py`: deterministic developer command and physical-event replay.
 - `composition/live.py`: starts and owns the isolated frontend child and loopback socket.
 - `interfaces/bridge.py` and `interfaces/frames.py`: adapt ordered requests to the same
-  Operations service and serialize confirmed snapshots and feedback.
+  Operations service and serialize confirmed snapshots, timed door work, independent
+  resource counters and feedback. The frontend may display facts, not derive completion.
 - `composition/fixture.py` and `composition/fixtures/m0.json`: decode and instantiate the
   provisional definition; geometry and initial values have one owner.
 - `composition/main.py`: installed developer entry point.

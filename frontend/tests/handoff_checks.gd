@@ -27,10 +27,9 @@ func _run() -> void:
 	else:
 		if not await _takeover():
 			return
-	app.client.close()
 	if "--sensing" not in OS.get_cmdline_user_args():
 		print("M0_HANDOFF_OK: " + ("passable partial opening" if "--partial" in OS.get_cmdline_user_args() else "in-flight pose retained"))
-	quit()
+	app.shutdown()
 
 
 func _sensing() -> bool:

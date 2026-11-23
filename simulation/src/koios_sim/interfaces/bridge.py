@@ -128,10 +128,29 @@ def _snapshot(session: Session) -> dict[str, object]:
         "stamp_ms": session.stamp_ms,
         "paused": session.paused,
         "opening_fraction": fraction,
+        "door_activity": _door_activity(session),
+        "door_energy_mj": {
+            "controller": session.controller_energy_mj,
+            "mechanism": session.mechanism_energy_mj,
+        },
         "active": active,
         "manual": None if session.manual is None else session.manual.id,
         **_presentation(session, fraction),
     }
+
+
+def _door_activity(session: Session) -> dict[str, object] | None:
+    opening = session.opening
+    if opening is not None:
+        return {
+            "command_id": opening.command_id, "phase": "opening",
+            "door_id": session.world.door.id, "origin": opening.origin,
+        }
+    if session.pending_devices:
+        command_id, origin = session.pending_devices[0]
+        return {"command_id": command_id, "phase": "queued",
+                "door_id": session.world.door.id, "origin": origin}
+    return None
 
 
 def _event(payload: object) -> PhysicalEvent:
