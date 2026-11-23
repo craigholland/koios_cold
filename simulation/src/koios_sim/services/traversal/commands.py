@@ -115,7 +115,7 @@ def _format_query(session: Session, verb: Verb) -> str:
         start = order.index + 1 if order else 1
         lines = [f"{index}. {step.verb} {step.address}" for index, step in enumerate(steps, start)]
         return f"QUEUE: {detail}\n" + ("\n".join(lines) if lines else "empty")
-    action = order.phase if order else "idle"
+    action = order.phase if order else ("manual" if session.manual is not None else "idle")
     return (f"STATUS: {detail}; room={drone.room_id}; charge={drone.charge_wh:.6f}/"
             f"{drone.capacity_wh:g} Wh; integrity={drone.condition_pct:g}%; control=player; "
             f"action={action}; queue={len(steps)}; connection=none.")

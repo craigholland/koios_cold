@@ -18,15 +18,17 @@ Godot owns presentation, physical movement and collision. Python is the sole
 source of topology and lasting state. The frontend can project the application
 snapshot and report bounded physical outcomes; it cannot infer completion
 from an unacknowledged submission or define simulation power or timing rules.
-Current scope is one fixed overhead scene; later views, controls and audio
-are not implemented here.
+Current scope is one shared fixed overhead scene with Schematic and Drone
+projections and focused direct controls; audio is not implemented here.
 
 ## File index and public boundary
 
 - `app/sandbox.tscn` and `sandbox.gd`: compose the scene, status, command UI,
   semantic requests and the bounded traversal smoke.
-- `features/traversal/room_view.gd`: fixture projection, sliding-door
-  colliders and real local movement.
+- `features/traversal/room_view.gd`: both projections, sliding-door colliders
+  and real local movement.
+- `input/m0_controls.gd`: scoped bindings and fresh-press focus gate.
+- `input/command_draft.gd`: history and draft; inserts only Python-known tokens.
 - `bridge/json_frames.gd` and `local_client.gd`: bounded loopback transport,
   one in-flight sequence, errors and uncertain outcomes without replay.
 - `tests/`: executable headless bridge and movement probes.

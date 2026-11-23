@@ -15,7 +15,7 @@ func _run() -> void:
 			{"id": "B", "min_corner": _point(2, 0), "max_corner": _point(4, 4)},
 		],
 		"door": {"id": "test", "gap_start": _point(2, 1), "gap_end": _point(2, 3)},
-		"drone": {"location": _point(1, 2), "display_name": "Test body"},
+		"drone": {"location": _point(1, 2), "display_name": "Test body", "heading_degrees": 0},
 	}
 	var view := View.new()
 	root.add_child(view)

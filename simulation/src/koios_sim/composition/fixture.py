@@ -6,6 +6,7 @@ from importlib.resources import files
 from math import isfinite
 from typing import TypeVar, cast
 
+from koios_sim.domain.traversal.observation import Marker, Sensing
 from koios_sim.domain.traversal.operation import Timing
 from koios_sim.domain.traversal.world import (
     Door,
@@ -29,8 +30,13 @@ def load_m0() -> World:
 
 
 def load_scenario() -> tuple[World, Timing]:
+    world, timing, _ = load_live_scenario()
+    return world, timing
+
+
+def load_live_scenario() -> tuple[World, Timing, Sensing]:
     resource = files(__package__).joinpath("fixtures", "m0.json")
-    return decode_scenario(resource.read_text(encoding="utf-8"))
+    return _decode_live(resource.read_text(encoding="utf-8"))
 
 
 def decode_fixture(text: str) -> World:
@@ -38,9 +44,14 @@ def decode_fixture(text: str) -> World:
 
 
 def decode_scenario(text: str) -> tuple[World, Timing]:
+    world, timing, _ = _decode_live(text)
+    return world, timing
+
+
+def _decode_live(text: str) -> tuple[World, Timing, Sensing]:
     try:
         root = _record(json.loads(text, object_pairs_hook=_unique_object), "fixture", (
-            "classification", "deck_id", "rooms", "door", "drone", "timing",
+            "classification", "deck_id", "rooms", "door", "drone", "timing", "sensing",
         ))
         if root["classification"] != "provisional-development-fixture":
             raise FixtureError("fixture classification must be provisional-development-fixture")
@@ -53,7 +64,7 @@ def decode_scenario(text: str) -> tuple[World, Timing]:
         return world, Timing(
             timings("opening_ms", _integer), timings("waypoint_ms", _integer),
             timings("idle_w", _integer), timings("travel_w", _integer),
-        )
+        ), _sensing(root["sensing"])
     except FixtureError:
         raise
     except (ValueError, OverflowError) as exc:
@@ -164,3 +175,22 @@ class _Fields:
 
     def __call__(self, key: str, parse: Callable[[object, str], T]) -> T:
         return parse(self.values[key], f"{self.label}.{key}")
+
+
+def _sensing(value: object) -> Sensing:
+    fields = _Fields(value, "sensing", (
+        "reach_m", "light_m", "half_angle_deg", "speed_m_s", "turn_deg_s", "markers",
+    ))
+    return Sensing(fields("reach_m", _number), fields("light_m", _number),
+                   fields("half_angle_deg", _number), fields("speed_m_s", _number),
+                   fields("turn_deg_s", _number), fields("markers", _markers))
+
+
+def _markers(value: object, label: str) -> tuple[Marker, ...]:
+    if not isinstance(value, list):
+        raise FixtureError(f"{label} must be an array")
+    result: list[Marker] = []
+    for item in value:
+        fields = _Fields(item, label, ("id", "point"))
+        result.append(Marker(fields("id", _string), fields("point", _point)))
+    return tuple(result)

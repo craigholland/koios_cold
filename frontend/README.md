@@ -10,8 +10,8 @@ tags: [m0, godot, python, local-bridge, developer-verification]
 
 This standalone development scene runs the existing one-drone, two-room,
 one-door fixture through Python and Godot. It is not the opening campaign
-or the separate Drone and Schematic views. Direct steering, full view
-interaction, sound and integrated M0 sign-off are later work.
+or a claim that M0 is finished. It provides the Schematic and deck-aligned Drone
+views plus scoped direct steering. Sound and final integrated sign-off are later.
 
 ## Windows setup and launch
 
@@ -44,6 +44,28 @@ input is retained for a deliberate retry. If the backend goes away before
 acknowledgement, the scene remains responsive, freezes at its last confirmed
 state and disables submission. Start a fresh fixture to continue.
 
+## Views, controls and focus
+
+- Press **0** for Schematic or **1** for the assigned Drone view outside Command
+  Input. This does not pause or retarget accepted work. Both views share pose,
+  heading, and door geometry; Schematic separates controller evidence from the
+  blueprint and Drone view shows only current local light/line-of-sight.
+- In Drone view, Left/Right turn in place and Up/Down drive forward/reverse
+  relative to the drone's heading. Releasing controls or leaving focus stops
+  steering immediately. A new nonrepeat key press is required after return.
+  Accepted manual takeover replaces the existing autonomous route.
+- With Command Input focused, ordinary typing/digits and arrows are text/history
+  controls; Enter submits, Tab completes allowed tokens and Escape exits text
+  focus without issuing a stop. Drafts and history survive view changes.
+- **F3** toggles the semantic clock even from Command Input. Paused input
+  cannot move the drone or take over its route.
+- Optional bindings are stored in Godot's local `user://m0-bindings.json`.
+  Example: `{"forward":"W","reverse":"S","left":"A","right":"D"}`.
+  Supported action keys are `forward`, `reverse`, `left`, `right`, `schematic`,
+  `drone`, and `pause`. Use one physical key per action; duplicate bindings,
+  unknown keys, and Enter/Tab/Escape are rejected without changing defaults.
+Global pause can use F1–F12 only so remapping cannot steal ordinary typing.
+
 ## Runtime seam
 
 The launcher starts one Godot process and serves one ephemeral IPv4 loopback
@@ -59,7 +81,10 @@ actual movement, not from rendering the requested destination. The client
 sends bounded elapsed-millisecond requests and meaningful doorway/arrival
 reports using the last acknowledged Python timestamp and active order
 identity/step. The authoritative clock, commands and lasting state remain
-in Python. Motion on-screen before the next confirmation is physical
+in Python. Manual pose reports carry the current direct-control ID and ship stamp.
+The provisional fixture defines speed, turn, light reach and sight angle, not new
+hardware ratings. One non-interactive marker tests limited discovery; its ID and
+location are not sent until observation permits them. Motion before confirmation is
 presentation, not a second durable room state.
 
 ## Verification
@@ -73,11 +98,15 @@ After the install/import above, from the repository root:
 & $console --headless --path frontend --script res://tests/movement_checks.gd
 & $python -m koios_sim.composition.live --godot $console --headless --smoke
 & $python -m koios_sim.composition.live --godot $godot --smoke
+& $python -m koios_sim.composition.live --godot $console --headless --control-check
+& $python -m koios_sim.composition.live --godot $godot --control-check --native-focus
 ```
 
 The smoke runs the actual scene, command service and movement, then exits
 after Python confirms R2; it is not a full interaction or art review.
 The bridge and collision scripts test framing, pending-ack disconnection,
 and passage under closed, too-narrow and open leaves. Check engine stderr
-as well as result markers. The [verification contract](../docs/Authoritative/Identity/verification_contract.md)
+as well as result markers. The control check injects keys against the actual scene
+and backend. Its headless mode simulates focus notices; the native mode opens a
+dedicated second window to exercise actual Windows focus loss and return. The [verification contract](../docs/Authoritative/Identity/verification_contract.md)
 owns the inherited Python, handbook and whitespace checks.
