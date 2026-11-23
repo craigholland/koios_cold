@@ -1,3 +1,11 @@
+---
+title: "Koios Cold Simulation"
+created_date: 2026-11-23
+update_date: 2026-11-23
+status: APPROVED
+tags: [simulation, m0, python, development-setup, headless-checks]
+---
+
 # Koios Cold simulation
 
 This first M0 slice installs a headless Python package. It displays the real read-only
