@@ -187,29 +187,57 @@ class Session:
         if self.paused:
             return
         while elapsed_ms:
+            self._interrupt_opening_if_needed()
             opening = self.opening
-            n = min(elapsed_ms, opening.remaining_ms) if opening is not None else elapsed_ms
-            self.stamp_ms += n
-            self._charge(n)
-            elapsed_ms -= n
-            if opening is not None:
-                opening.remaining_ms -= n
-                if opening.remaining_ms == 0:
-                    self._finish_open(opening)
+            order = self._moving_order()
+            interval_ms = min(elapsed_ms, opening.remaining_ms) if opening else elapsed_ms
+            exhaustion_ms = None
+            if order is not None:
+                exhaustion_ms = to_mj(self.world.drone.charge_wh) // self.timing.travel_w
+                interval_ms = min(interval_ms, exhaustion_ms)
 
-    def _charge(self, elapsed_ms: int) -> None:
-        d, door, order = self.world.drone, self.world.door, self.order
+            if interval_ms:
+                self._charge(interval_ms, order)
+                self.stamp_ms += interval_ms
+                elapsed_ms -= interval_ms
+                if opening is not None:
+                    opening.remaining_ms -= interval_ms
+
+            if order is not None and exhaustion_ms == interval_ms:
+                self._fail_order(order, "E_POWER",
+                                 f"{self.short_drone} has no usable power for this operation.")
+            if opening is not None and opening.remaining_ms == 0:
+                self._finish_open(opening)
+
+    def _interrupt_opening_if_needed(self) -> None:
+        opening = self.opening
+        if opening is None:
+            return
+        failure = door_failure(self.world.door)
+        # A jammed attempt stays energized through its bounded attempt time.
+        if failure is None or failure.code == "E_JAMMED":
+            return
+        self.opening = None
+        self._open_failure(opening.command_id, opening.origin, opening.queued_step,
+                           failure.code, failure.reason)
+        self.drive_order()
+
+    def _moving_order(self) -> Order | None:
+        order = self.order
+        if order is not None and order.phase is Phase.RUNNING and order.current.verb is Verb.MOVE:
+            return order
+        return None
+
+    def _charge(self, elapsed_ms: int, moving: Order | None) -> None:
+        d, door = self.world.drone, self.world.door
         if door.services.controller_powered:
             self.controller_energy_mj += CONTROLLER_W * elapsed_ms
-        if self.opening is not None and door.services.mechanism_powered:
+        if self.opening is not None:
             self.mechanism_energy_mj += DOOR_MECHANISM_W * elapsed_ms
         power = self.timing.idle_w
-        if order is not None and order.phase is Phase.RUNNING and order.current.verb is Verb.MOVE:
+        if moving is not None:
             power = self.timing.travel_w
-            funded_ms = min(elapsed_ms, to_mj(d.charge_wh) // power)
-            order.segment_ms += funded_ms
-            if funded_ms < elapsed_ms:
-                self._fail_order(order, "E_POWER", f"{self.short_drone} has no usable power for this operation.")
+            moving.segment_ms += elapsed_ms
         self.world = replace(self.world, drone=replace(d, charge_wh=spend(d.charge_wh, power, elapsed_ms)))
 
     def _finish_open(self, opening: Opening) -> None:

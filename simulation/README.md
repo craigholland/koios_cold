@@ -74,8 +74,12 @@ reads never change accepted work.
 The manifest's time values are in integer milliseconds and drone power in
 integer watts. Semantic energy debits use integer millijoules (W × ms); initial
 and projected charge in Wh is converted with nearest-mJ rounding (half up) and
-never raised by a debit. The status text reports six decimal places for Wh.
+never raised by a debit. Travel fails when charge can no longer fund a full
+millisecond of travel. Larger steps split at that instant; remaining elapsed
+time uses the idle drain. Status reports six decimal places for Wh.
 Controller and mechanism support draw from the separate external supply:
 20 W while controller power is supplied, and 500 W during actual mechanism
-activity, including a powered jam attempt. Door duration and drone tuning are
+activity, including a powered jam attempt. Loss of a required service aborts
+an opening without crediting outage time; restored service allows a fresh
+request. Door duration and drone tuning are
 provisional fixture inputs, not adopted ratings or campaign reserve values.

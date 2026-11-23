@@ -235,3 +235,78 @@ def test_already_open_steps_do_not_recurse_or_consume_mechanism_energy() -> None
     execute(s, "; ".join(["open D1"] * 1200 + ["move 1 R2"]))
     assert s.order is not None and s.order.index == 1200
     assert s.mechanism_energy_mj == 0 and s.opening is None
+
+
+@pytest.mark.parametrize(("service", "code"), [
+    ("mechanism_powered", "E_POWER"),
+    ("controller_powered", "E_CONTROLLER"),
+    ("controller_healthy", "E_CONTROLLER"),
+    ("controller_data_connected", "E_DATA"),
+    ("access_authorized", "E_SECURE"),
+])
+def test_open_interruption_does_not_credit_outage_or_replace_waiting_route(
+    service: str, code: str
+) -> None:
+    s = sandbox()
+    execute(s, "move 1 R2")
+    route = s.order
+    execute(s, "open D1")
+    half = s.timing.opening_ms // 2
+    s.advance(half)
+    door = s.world.door
+    s.world = replace(s.world, door=replace(door, services=replace(
+        door.services, **{service: False}
+    )))
+    s.advance(s.timing.opening_ms - half - 1)
+    s.world = replace(s.world, door=door)
+    s.advance(1)
+    assert s.world.door.position is DoorPosition.CLOSED
+    assert s.mechanism_energy_mj == 500 * half
+    assert s.order is route and route is not None and route.phase is Phase.WAITING
+    failure = s.feedback()[-1]
+    assert failure.text.startswith(f"ERROR {code}: ")
+    assert failure.stamp_ms == half and failure.command_id == "C2"
+
+    execute(s, "open D1")
+    s.advance(s.timing.opening_ms)
+    assert s.world.door.position is DoorPosition.OPEN
+    assert s.order is route and route.phase is Phase.RUNNING
+    assert s.mechanism_energy_mj == 500 * (half + s.timing.opening_ms)
+
+
+def test_interrupted_queued_open_halts_and_keeps_remaining_queue() -> None:
+    s = sandbox()
+    execute(s, "open D1; move 1 R2")
+    s.advance(100)
+    door = s.world.door
+    s.world = replace(s.world, door=replace(door, services=replace(
+        door.services, controller_data_connected=False
+    )))
+    s.advance(100)
+    s.world = replace(s.world, door=door)
+    s.advance(s.timing.opening_ms)
+    assert s.world.door.position is DoorPosition.CLOSED
+    assert s.order is not None and s.order.phase is Phase.FAILED
+    assert s.feedback()[-1].stamp_ms == 100
+    assert "; E_DATA:" in s.feedback()[-1].text
+    assert "2. move m0/R2" in texts(s, "queue show 1")[0]
+    assert s.mechanism_energy_mj == 50_000
+
+
+@pytest.mark.parametrize("charge_mj", [0, 1, 100, 101])
+def test_exhaustion_is_an_exact_timestep_independent_boundary(charge_mj: int) -> None:
+    world, timing = load_scenario()
+    world = replace(world, door=replace(world.door, position=DoorPosition.OPEN),
+                    drone=replace(world.drone, charge_wh=charge_mj / MJ_PER_WH))
+    sessions = [Session(world, timing), Session(world, timing), Session(world, timing)]
+    for s, parts in zip(sessions, ([10], [1] * 10, [2, 3, 5]), strict=True):
+        execute(s, "move 1 R2")
+        for part in parts:
+            s.advance(part)
+        assert s.order is not None and s.order.phase is Phase.FAILED
+        assert s.stamp_ms == 10 and to_mj(s.world.drone.charge_wh) == 0
+        assert s.feedback()[-1].stamp_ms == charge_mj // timing.travel_w
+        assert s.feedback()[-1].command_id == "C1"
+        assert "E_POWER" in s.feedback()[-1].text
+        assert s.controller_energy_mj == 200 and s.mechanism_energy_mj == 0
+    assert sessions[0].feedback() == sessions[1].feedback() == sessions[2].feedback()
