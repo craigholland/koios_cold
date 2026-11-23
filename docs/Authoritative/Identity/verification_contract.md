@@ -1,7 +1,7 @@
 ---
 title: "Koios Development Verification Contract"
 created_date: 2026-11-21
-update_date: 2026-11-22
+update_date: 2026-11-23
 status: APPROVED
 tags: [documentation-validation, executable-checks, verification-evidence, test-readiness, final-head-freshness]
 ---
@@ -41,9 +41,10 @@ Review scope and accuracy in addition to mechanical checks:
 
 ## Application Verification Readiness
 
-This handbook does not configure a Python runtime, install packages, build Godot, or create application CI. Existing authoring-workspace tests and technical fixture specifications do not establish that they are present or executable in the initial GitHub clone.
-
-When application work is authorized, its task must establish the supported environment, dependency installation, and exact checks. The intended Python baseline is Ruff, mypy, and pytest, with headless domain tests, service tests through explicit fakes, and boundary/integration checks appropriate to the change.
+The installable headless Python M0 foundation has a developer status query and a
+Ruff, mypy, and pytest baseline. Follow the [simulation setup and checks](../../../simulation/README.md#windows-setup-and-verification)
+from a clean environment. These checks do not exercise player commands, movement,
+Godot, inference, or persistence. This handbook does not create hosted application CI.
 
 Godot presentation and continuous physics need their own scoped verification. A headless simulation pass does not establish rendering, control responsiveness, sound quality, or end-to-end bridge correctness. Inference behavior and provider availability need separately scoped checks and authored fallback coverage when implemented.
 

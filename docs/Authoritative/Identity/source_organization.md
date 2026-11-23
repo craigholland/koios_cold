@@ -1,7 +1,7 @@
 ---
 title: "Koios Source Organization"
 created_date: 2026-11-22
-update_date: 2026-11-22
+update_date: 2026-11-23
 status: APPROVED
 tags: [source-organization, code-navigation, architectural-ownership, python, godot, local-contracts]
 ---
@@ -14,13 +14,13 @@ This standard owns concrete Koios source placement. It applies [Craig Architectu
 
 The published handbook lives under `docs/`: `Authoritative/Canon/` holds reusable principles, `Authoritative/Identity/` binds them to Koios, and `tools/` contains handbook verification and its tests. Existing design families keep their roles and [availability rules](development_profile.md#design-source-availability).
 
-The application paths below are **planned**, not links or claims that code exists. Choose a home first; create it only when an authorized slice needs it. Do not create empty layers, select a database engine, or select a bridge by adopting this layout.
+The [headless simulation foundation](../../../simulation/README.md) uses a subset of the Python homes below. The local contract records what actually exists. Other examples are **planned**, not links or claims that code exists. Create a home only when an authorized slice needs it. Do not create empty layers, select a database engine, or select a bridge by adopting this layout.
 
 ## Python Simulation
 
-Use `simulation/src/koios_sim/` for the planned Python package. Organize first by responsibility, then by capability using stable shared terms, such as `electrical` where that is the actual owner.
+Use `simulation/src/koios_sim/` for the Python package. Organize first by responsibility, then by capability using stable shared terms, such as `electrical` where that is the actual owner.
 
-| Planned home | Responsibility |
+| Responsibility home | Responsibility |
 | --- | --- |
 | `domain/<capability>/` | Authoritative simulation concepts and state, deterministic rules and state transitions, and domain vocabulary and contracts. |
 | `database/<capability>/` | Stored representations, mapping to and from domain types, and concrete repository implementations. Does not define simulation rules or own a second version of game state. |
@@ -51,7 +51,7 @@ The frontend can compose concepts from multiple Python capabilities. It need not
 - Use narrow, intentional public imports. Python can expose curated, side-effect-free package exports; Godot features consume named public contracts and reusable components rather than another feature's private scripts. Put translations at the boundary.
 - Extract a focused module when a file mixes owners, hides dependencies, or forces readers to hold unrelated context. The [Python size guidance](../Canon/Architecture/Craig-Architecture-Python.md#cohesion-and-size) is a review heuristic, not a quota. Keep provisional structures easy to relocate.
 - Put a concise `__ai__.md` beside durable source responsibilities. State purpose, ownership, allowed dependencies, important files, public surfaces, and checks that actually run. Use the [local contract standard](../Canon/Architecture/Craig-Architecture-__ai__-Template.md); use a parent contract until a narrower owner is warranted.
-- Keep production packages separate from tests. Plan `simulation/tests/{domain,services,database,integration}/` and `frontend/tests/`, using matching capability or feature names. Verify the rules headlessly, orchestration with injected fakes, persistence through its adapter, presentation in Godot, and the bridge with bounded integration tests when configured. Keep repository-wide tooling and documentation outside runtime packages.
+- Keep production packages separate from tests. Use `simulation/tests/` for headless checks and plan `frontend/tests/`; group by the applicable responsibility and capability as the suite grows. Verify the rules headlessly, orchestration with injected fakes, persistence through its adapter, presentation in Godot, and the bridge with bounded integration tests when configured. Keep repository-wide tooling and documentation outside runtime packages.
 
 ## Worked Navigation: Battery Status
 
