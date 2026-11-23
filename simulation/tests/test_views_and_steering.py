@@ -7,6 +7,7 @@ from koios_sim.domain.traversal.world import DoorPosition, Point
 from koios_sim.interfaces.bridge import Bridge, _presentation
 from koios_sim.interfaces.operations import execute
 from koios_sim.services.traversal.contracts import PhysicalEvent
+from koios_sim.services.traversal.manual_control import Takeover
 from koios_sim.services.traversal.session import Session
 
 
@@ -99,3 +100,39 @@ def test_stale_manual_cycle_has_no_time_or_charge_side_effect() -> None:
     })
     assert result["note"] == "Direct motion was not confirmed."
     assert session.stamp_ms == 0 and session.world.drone.charge_wh == before
+
+
+def test_handoff_validates_old_order_and_commits_pose_before_cancelling() -> None:
+    world, timing, sensing = load_live_scenario()
+    world = replace(world, door=replace(world.door, position=DoorPosition.OPEN))
+    session = Session(world, timing, sensing)
+    execute(session, "move 1 R2")
+    old = session.order
+    assert old is not None
+    session.advance(250)
+    actual = Takeover(old.command_id, 1, 250, 30, Point(5.35, 3), 0)
+    assert not session.begin_manual(world.drone.permanent_id, replace(actual, command_id="stale"))
+    assert not session.begin_manual(world.drone.permanent_id, replace(actual, stamp_ms=249))
+    assert not session.begin_manual(world.drone.permanent_id, replace(actual, point=Point(7, 3)))
+    assert session.stamp_ms == 250 and session.order is old
+    assert session.begin_manual(world.drone.permanent_id, actual)
+    assert session.status().drone.location == actual.point and session.stamp_ms == 280
+    assert session.order is None and session.manual is not None
+    assert not session.report_physical(PhysicalEvent(old.command_id, 1, world.drone.permanent_id,
+                                                     280, Waypoint.ARRIVAL, "R2", Point(12, 3)))
+
+
+def test_manual_aperture_uses_circular_body_width_during_opening() -> None:
+    world, timing, sensing = load_live_scenario()
+    d = replace(world.drone, location=Point(7.9, 3))
+    session = Session(replace(world, drone=d), timing, sensing)
+    execute(session, "open D1")
+    assert session.begin_manual(d.permanent_id) and session.manual is not None
+    lease = session.manual.id
+    session.advance(300)
+    assert not session.report_manual(lease, d.permanent_id, 300, Point(8.1, 3), 0, release=False)
+    session.advance(400)
+    assert session.world.door.position is DoorPosition.CLOSED
+    assert not session.report_manual(lease, d.permanent_id, 700, Point(8.1, 3.5), 0, release=False)
+    assert session.report_manual(lease, d.permanent_id, 700, Point(8.1, 3), 0, release=True)
+    assert session.world.drone.room_id == "R2"

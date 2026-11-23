@@ -52,15 +52,22 @@ def door_failure(door: Door) -> Failure | None:
 
 
 def can_cross(door: Door, point: Point) -> bool:
-    a, b = door.gap_start, door.gap_end
-    if door.position is not DoorPosition.OPEN:
-        return False
-    return (
-        point.x_m == a.x_m and a.y_m < point.y_m < b.y_m
-        if a.x_m == b.x_m
-        else point.y_m == a.y_m and a.x_m < point.x_m < b.x_m
-    )
+    return aperture_contains(door, point, float(door.position is DoorPosition.OPEN), 0.0)
 
+
+def aperture_contains(door: Door, point: Point, fraction: float, radius_m: float) -> bool:
+    """A circular body must fit between the two leaf edges at the shared wall."""
+    a, b = door.gap_start, door.gap_end
+    if a.x_m == b.x_m:
+        if abs(point.x_m - a.x_m) > 1e-7:
+            return False
+        lo, hi, coordinate = a.y_m, b.y_m, point.y_m
+    else:
+        if abs(point.y_m - a.y_m) > 1e-7:
+            return False
+        lo, hi, coordinate = a.x_m, b.x_m, point.x_m
+    half_open = (hi - lo) * fraction / 2
+    return radius_m + abs(coordinate - (lo + hi) / 2) < half_open
 
 def is_inside(room: Room, point: Point) -> bool:
     a, b = room.min_corner, room.max_corner

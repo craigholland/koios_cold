@@ -179,11 +179,12 @@ class _Fields:
 
 def _sensing(value: object) -> Sensing:
     fields = _Fields(value, "sensing", (
-        "reach_m", "light_m", "half_angle_deg", "speed_m_s", "turn_deg_s", "markers",
+        "reach_m", "light_m", "half_angle_deg", "speed_m_s", "turn_deg_s", "body_radius_m", "markers",
     ))
     return Sensing(fields("reach_m", _number), fields("light_m", _number),
                    fields("half_angle_deg", _number), fields("speed_m_s", _number),
-                   fields("turn_deg_s", _number), fields("markers", _markers))
+                   fields("turn_deg_s", _number), fields("body_radius_m", _number),
+                   fields("markers", _markers))
 
 
 def _markers(value: object, label: str) -> tuple[Marker, ...]:

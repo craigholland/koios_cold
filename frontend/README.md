@@ -82,6 +82,9 @@ sends bounded elapsed-millisecond requests and meaningful doorway/arrival
 reports using the last acknowledged Python timestamp and active order
 identity/step. The authoritative clock, commands and lasting state remain
 in Python. Manual pose reports carry the current direct-control ID and ship stamp.
+Takeover during a move reconciles the actual pose against the prior order before
+cancelling it. The shared fixture radius and actual leaf aperture determine crossing
+even during a sufficiently wide partial opening.
 The provisional fixture defines speed, turn, light reach and sight angle, not new
 hardware ratings. One non-interactive marker tests limited discovery; its ID and
 location are not sent until observation permits them. Motion before confirmation is
@@ -100,6 +103,9 @@ After the install/import above, from the repository root:
 & $python -m koios_sim.composition.live --godot $godot --smoke
 & $python -m koios_sim.composition.live --godot $console --headless --control-check
 & $python -m koios_sim.composition.live --godot $godot --control-check --native-focus
+$launcher = 'from koios_sim.composition.live import launch; import sys; sys.exit(launch(sys.argv[1:]))'
+& $python -c $launcher $console --headless --path frontend --script res://tests/handoff_checks.gd
+& $python -c $launcher $console --headless --path frontend --script res://tests/handoff_checks.gd -- --partial
 ```
 
 The smoke runs the actual scene, command service and movement, then exits
@@ -108,5 +114,6 @@ The bridge and collision scripts test framing, pending-ack disconnection,
 and passage under closed, too-narrow and open leaves. Check engine stderr
 as well as result markers. The control check injects keys against the actual scene
 and backend. Its headless mode simulates focus notices; the native mode opens a
-dedicated second window to exercise actual Windows focus loss and return. The [verification contract](../docs/Authoritative/Identity/verification_contract.md)
+dedicated second window to exercise actual Windows focus loss and return. The handoff script runs the real mover against Python, taking over mid-route
+or crossing a physically passable partial opening. The [verification contract](../docs/Authoritative/Identity/verification_contract.md)
 owns the inherited Python, handbook and whitespace checks.

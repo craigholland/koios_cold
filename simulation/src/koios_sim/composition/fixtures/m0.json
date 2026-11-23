@@ -13,6 +13,7 @@
     "half_angle_deg": 54,
     "speed_m_s": 5,
     "turn_deg_s": 120,
+    "body_radius_m": 0.21428571428571427,
     "markers": [
       {"id": "M0-MARKER", "point": [14, 1]}
     ]

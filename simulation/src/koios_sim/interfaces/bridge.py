@@ -7,9 +7,10 @@ from typing import cast
 
 from koios_sim.domain.traversal.observation import observe
 from koios_sim.domain.traversal.operation import Waypoint
-from koios_sim.domain.traversal.world import DoorPosition, Point
+from koios_sim.domain.traversal.world import Point
 from koios_sim.interfaces.operations import USAGE, execute
 from koios_sim.services.traversal.contracts import Feedback, PhysicalEvent
+from koios_sim.services.traversal.manual_control import Takeover
 from koios_sim.services.traversal.session import Session
 
 MAX_ADVANCE_MS = 250
@@ -48,7 +49,9 @@ class Bridge:
         elif kind == "pause":
             self._session.set_paused(_bool(message, "paused"))
         elif kind == "manual_begin":
-            if not self._session.begin_manual(_text(message, "drone_id")):
+            raw = message.get("handoff")
+            handoff = None if raw is None else _handoff(raw)
+            if not self._session.begin_manual(_text(message, "drone_id"), handoff):
                 note = "Direct control unavailable."
         elif kind == "manual_cycle":
             if not self._manual_cycle(message):
@@ -98,10 +101,7 @@ def _feedback(value: Feedback) -> dict[str, object]:
 
 def _snapshot(session: Session) -> dict[str, object]:
     order = session.order
-    door = session.world.door
-    fraction = 1.0 if door.position is DoorPosition.OPEN else 0.0
-    if session.opening is not None and not door.jammed:
-        fraction = 1.0 - session.opening.remaining_ms / session.timing.opening_ms
+    fraction = session.opening_fraction
     active: dict[str, object] | None = None
     if order is not None:
         active = {
@@ -193,7 +193,8 @@ def _presentation(session: Session, fraction: float) -> dict[str, object]:
         "door_report": door_report,
         "sensor": asdict(evidence) if evidence is not None else None,
         "discovered_markers": sorted(session.discovered_markers),
-        "steering": {"speed_m_s": sensing.speed_m_s, "turn_deg_s": sensing.turn_deg_s},
+        "steering": {"speed_m_s": sensing.speed_m_s, "turn_deg_s": sensing.turn_deg_s,
+                     "body_radius_m": sensing.body_radius_m},
         "completion": {
             "verbs": sorted(USAGE),
             "deck": session.context,
@@ -202,3 +203,18 @@ def _presentation(session: Session, fraction: float) -> dict[str, object]:
             "doors": [world.door.id],
         },
     }
+
+
+def _handoff(payload: object) -> Takeover:
+    if not isinstance(payload, dict):
+        raise MessageError("handoff must be an object")
+    handoff = cast(dict[str, object], payload)
+    elapsed = _int(handoff, "elapsed_ms", 0)
+    if elapsed > MAX_ADVANCE_MS:
+        raise MessageError("handoff exceeds the dev interval limit")
+    return Takeover(
+        _text(handoff, "command_id"), _int(handoff, "step", 1),
+        _int(handoff, "stamp_ms", 0), elapsed,
+        Point(_number(handoff, "x_m"), _number(handoff, "y_m")),
+        _number(handoff, "heading"),
+    )

@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from math import atan2, cos, degrees, hypot, radians, sin
 
+from koios_sim.domain.traversal.operation import aperture_contains
 from koios_sim.domain.traversal.world import Point, Room, World
 
 
@@ -19,10 +20,11 @@ class Sensing:
     half_angle_deg: float
     speed_m_s: float
     turn_deg_s: float
+    body_radius_m: float
     markers: tuple[Marker, ...]
 
     def __post_init__(self) -> None:
-        if min(self.reach_m, self.light_m, self.speed_m_s, self.turn_deg_s) <= 0:
+        if min(self.reach_m, self.light_m, self.speed_m_s, self.turn_deg_s, self.body_radius_m) <= 0:
             raise ValueError("provisional sensing and steering values must be positive")
         if not 0 < self.half_angle_deg < 90:
             raise ValueError("sensing half-angle must be strictly between 0 and 90 degrees")
@@ -47,7 +49,9 @@ def observe(world: World, profile: Sensing, opening: float) -> Observation:
     def extent(angle: float) -> Point:
         dx, dy = cos(radians(angle)), sin(radians(angle))
         walls = _exit_distance(room, origin, dx, dy)
-        if _in_aperture(world, Point(origin.x_m + walls * dx, origin.y_m + walls * dy), opening):
+        if aperture_contains(
+            world.door, Point(origin.x_m + walls * dx, origin.y_m + walls * dy), opening, 0.0
+        ):
             walls = _exit_distance(other, origin, dx, dy)
         return Point(origin.x_m + min(reach, walls) * dx, origin.y_m + min(reach, walls) * dy)
 
@@ -76,19 +80,3 @@ def _exit_distance(room: Room, p: Point, dx: float, dy: float) -> float:
         (room.min_corner.y_m - p.y_m) / dy if dy < 0 else float("inf")
     )
     return min(right, bottom)
-
-
-def _in_aperture(world: World, point: Point, fraction: float) -> bool:
-    if fraction <= 0:
-        return False
-    a, b = world.door.gap_start, world.door.gap_end
-    if a.x_m == b.x_m:
-        if abs(point.x_m - a.x_m) > 1e-7:
-            return False
-        lo, hi, value = a.y_m, b.y_m, point.y_m
-    else:
-        if abs(point.y_m - a.y_m) > 1e-7:
-            return False
-        lo, hi, value = a.x_m, b.x_m, point.x_m
-    half_width = (hi - lo) * fraction / 2
-    return abs(value - (lo + hi) / 2) < half_width

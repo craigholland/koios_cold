@@ -3,7 +3,6 @@ extends Node2D
 
 const SCALE_METRE := 42.0
 const STEP_SPEED := 5.0 * SCALE_METRE
-const DRONE_RADIUS := 9.0
 const WALL := 3.0
 var rooms: Dictionary = {}
 var door: Dictionary = {}
@@ -12,6 +11,7 @@ var leaves: Array[StaticBody2D] = []
 var fraction := -1.0
 var last_confirmed := Vector2.ZERO
 var drone_name := ""
+var body_radius := 0.0
 var heading := 0.0
 var drone_view := false
 var sensor: Variant = null
@@ -33,7 +33,8 @@ func apply(state: Dictionary) -> void:
 		drone = CharacterBody2D.new()
 		var col := CollisionShape2D.new()
 		var circle := CircleShape2D.new()
-		circle.radius = DRONE_RADIUS
+		body_radius = float(state.steering.body_radius_m) * SCALE_METRE
+		circle.radius = body_radius
 		col.shape = circle
 		drone.add_child(col)
 		add_child(drone)
@@ -203,6 +204,6 @@ func _draw() -> void:
 	if is_instance_valid(drone):
 		draw_line(drone.position, drone.position + Vector2.from_angle(deg_to_rad(heading)) * 24,
 				Color("#87d7ff"), 3)
-		draw_circle(drone.position, DRONE_RADIUS, Color("#87d7ff"))
+		draw_circle(drone.position, body_radius, Color("#87d7ff"))
 		draw_string(font, drone.position + Vector2(14, 5), drone_name,
 					HORIZONTAL_ALIGNMENT_LEFT)

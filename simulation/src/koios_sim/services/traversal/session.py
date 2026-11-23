@@ -2,6 +2,7 @@
 
 from dataclasses import replace
 
+from koios_sim.domain.traversal.manual import validated_room
 from koios_sim.domain.traversal.observation import Sensing
 from koios_sim.domain.traversal.operation import (
     CONTROLLER_W,
@@ -21,7 +22,7 @@ from koios_sim.services.traversal.contracts import (
     PhysicalEvent,
     Verb,
 )
-from koios_sim.services.traversal.manual_control import ManualControl
+from koios_sim.services.traversal.manual_control import ManualControl, Takeover
 from koios_sim.services.traversal.orders import Opening, Order
 from koios_sim.services.traversal.status import StatusSnapshot, get_status
 
@@ -108,12 +109,25 @@ class Session:
                   f"STOPPED: {self.short_drone}; current instruction cancelled and queue cleared.",
                   drone=True)
 
-    def begin_manual(self, drone_id: str) -> bool:
+    @property
+    def opening_fraction(self) -> float:
+        door = self.world.door
+        if door.position is DoorPosition.OPEN:
+            return 1.0
+        if self.opening is not None and not door.jammed:
+            return 1.0 - self.opening.remaining_ms / self.timing.opening_ms
+        return 0.0
+
+    def begin_manual(self, drone_id: str, handoff: Takeover | None = None) -> bool:
         if (self.paused or self.sensing is None or self.manual is not None
                 or drone_id != self.world.drone.permanent_id
                 or not self.world.drone.workstation_route_available
                 or to_mj(self.world.drone.charge_wh) < self.timing.travel_w):
             return False
+        moving = self._moving_order()
+        if moving is not None or handoff is not None:
+            if moving is None or handoff is None or not self._reconcile_takeover(moving, handoff):
+                return False
         self.order = None
         if self.opening is not None and self.opening.queued_step:
             self.opening = None
@@ -121,6 +135,26 @@ class Session:
         self.manual = ManualControl(identifier, drone_id, self.stamp_ms)
         self.emit(identifier, "godot", f"DIRECT CONTROL: {self.short_drone}; prior work cancelled.",
                   drone=True)
+        return True
+
+    def _reconcile_takeover(self, order: Order, handoff: Takeover) -> bool:
+        sensing = self.sensing
+        d = self.world.drone
+        if (sensing is None or handoff.command_id != order.command_id
+                or handoff.step != order.index + 1 or handoff.stamp_ms != self.stamp_ms
+                or not 0 <= handoff.heading < 360 or handoff.elapsed_ms < 0):
+            return False
+        limit = sensing.speed_m_s * (order.travel_ms + handoff.elapsed_ms) / 1000 + 0.12
+        room = validated_room(self.world, handoff.point, limit,
+                              self.opening_fraction, sensing.body_radius_m)
+        if room is None or (room != d.room_id and (not order.crossed or room != order.current.target_id)):
+            return False
+        self.advance(handoff.elapsed_ms)
+        if self._moving_order() is not order:
+            return False
+        self.world = replace(self.world, drone=replace(
+            self.world.drone, room_id=room, location=handoff.point, heading_degrees=handoff.heading
+        ))
         return True
 
     def report_manual(self, lease_id: str, drone_id: str, stamp_ms: int, point: Point,
@@ -133,7 +167,8 @@ class Session:
             self.manual = None
             return True
         state = lease.reconcile(self.world, point, heading, stamp_ms,
-                                sensing.speed_m_s, sensing.turn_deg_s)
+                                sensing.speed_m_s, sensing.turn_deg_s,
+                                self.opening_fraction, sensing.body_radius_m)
         if state is None:
             return False
         self.world = state
@@ -222,6 +257,7 @@ class Session:
             order.phase = Phase.QUEUED
             order.crossed = False
             order.segment_ms = 0
+            order.travel_ms = 0
 
     def advance(self, elapsed_ms: int) -> None:
         if type(elapsed_ms) is not int or elapsed_ms < 0:
@@ -282,6 +318,7 @@ class Session:
         if moving is not None:
             power = self.timing.travel_w
             moving.segment_ms += elapsed_ms
+            moving.travel_ms += elapsed_ms
         self.world = replace(self.world, drone=replace(d, charge_wh=spend(d.charge_wh, power, elapsed_ms)))
 
     def _finish_open(self, opening: Opening) -> None:

@@ -20,7 +20,8 @@ func _run() -> void:
 	var view := View.new()
 	root.add_child(view)
 	for aperture in [0.0, 0.1, 1.0]:
-		view.apply({"world": model, "opening_fraction": aperture})
+		view.apply({"world": model, "opening_fraction": aperture,
+			"steering": {"body_radius_m": 9.0 / 42.0}})
 		view.reset_to_confirmed()
 		for _i in range(60):
 			await physics_frame

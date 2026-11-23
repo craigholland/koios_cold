@@ -10,6 +10,7 @@ var command_draft := Draft.new()
 var local_view := false
 var window_active := true
 var pause_target: Variant = null
+var handoff_pending := false
 const TICK_MS := 50
 const MAX_TICK_MS := 250
 var client := LocalClient.new()
@@ -62,7 +63,7 @@ func _process(delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if not client.live or state.is_empty() or not pending_event.is_empty() or bool(state.paused):
+	if not client.live or state.is_empty() or handoff_pending or not pending_event.is_empty() or bool(state.paused):
 		return
 	if state.manual != null:
 		if _can_steer() and clock_buffer < MAX_TICK_MS - 30:
@@ -99,6 +100,7 @@ func _physics_process(delta: float) -> void:
 
 func _snapshot(next: Dictionary, feedback: Array) -> void:
 	var old_manual: Variant = state.get("manual")
+	handoff_pending = false
 	var active: Variant = next.active
 	if not pending_event.is_empty():
 		# A preceding tick can be in flight when the mover reaches a waypoint.
@@ -116,7 +118,8 @@ func _snapshot(next: Dictionary, feedback: Array) -> void:
 	if state.get("note") != null:
 		output.add_text(str(state.note) + "\n")
 		controls.clear()
-		view.reset_to_confirmed(float(state.world.drone.heading_degrees))
+		if old_manual != null:
+			view.reset_to_confirmed(float(state.world.drone.heading_degrees))
 	if bool(state.paused):
 		controls.clear()
 	var world: Dictionary = state.world
@@ -189,10 +192,21 @@ func _control_requests() -> bool:
 		client.send("pause", {"paused": pause_target})
 		pause_target = null
 		return true
-	if controls.armed and _can_steer() and axis != Vector2.ZERO:
+	if controls.armed and _can_steer() and axis != Vector2.ZERO and pending_event.is_empty():
+		var active: Variant = state.active
+		var request := {"drone_id": state.world.drone.permanent_id}
+		if active is Dictionary and active.phase == "running" and active.verb == "move":
+			if not view.manual_point_is_inside():
+				return false
+			var point := view.semantic_point()
+			var elapsed := int(clock_buffer)
+			request.handoff = {"command_id": active.command_id, "step": int(active.step),
+				"stamp_ms": int(state.stamp_ms), "elapsed_ms": elapsed,
+				"x_m": point.x, "y_m": point.y, "heading": view.heading}
+			clock_buffer -= elapsed
 		controls.armed = false
-		client.send("manual_begin", {"drone_id": state.world.drone.permanent_id})
-		return true
+		handoff_pending = client.send("manual_begin", request)
+		return handoff_pending
 	return false
 
 

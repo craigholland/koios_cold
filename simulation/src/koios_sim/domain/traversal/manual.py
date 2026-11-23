@@ -2,11 +2,12 @@
 
 from math import hypot
 
-from koios_sim.domain.traversal.operation import can_cross, is_inside
+from koios_sim.domain.traversal.operation import aperture_contains, is_inside
 from koios_sim.domain.traversal.world import Point, World
 
 
-def validated_room(world: World, goal: Point, distance_limit_m: float) -> str | None:
+def validated_room(world: World, goal: Point, distance_limit_m: float,
+                   opening_fraction: float, body_radius_m: float) -> str | None:
     drone = world.drone
     start = drone.location
     if hypot(goal.x_m - start.x_m, goal.y_m - start.y_m) > distance_limit_m:
@@ -23,4 +24,5 @@ def validated_room(world: World, goal: Point, distance_limit_m: float) -> str | 
     else:
         portion = (gap.y_m - start.y_m) / (goal.y_m - start.y_m)
         crossing = Point(start.x_m + portion * (goal.x_m - start.x_m), gap.y_m)
-    return room.id if 0 <= portion <= 1 and can_cross(world.door, crossing) else None
+    usable = aperture_contains(world.door, crossing, opening_fraction, body_radius_m)
+    return room.id if 0 <= portion <= 1 and usable else None

@@ -13,6 +13,7 @@ class Order:
     index: int = 0
     phase: Phase = Phase.QUEUED
     segment_ms: int = 0
+    travel_ms: int = 0
     crossed: bool = False
 
     @property
