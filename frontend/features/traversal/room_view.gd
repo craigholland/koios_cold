@@ -12,6 +12,9 @@ var fraction := -1.0
 var last_confirmed := Vector2.ZERO
 var drone_name := ""
 var body_radius := 0.0
+var motor_active := false
+var motor_strain := false
+var physical_contact := false
 var heading := 0.0
 var drone_view := false
 var sensor: Variant = null
@@ -60,11 +63,27 @@ func reset_to_confirmed(confirmed_heading := -1.0) -> void:
 		queue_redraw()
 
 
+func begin_physics_sample() -> void:
+	motor_active = false
+	motor_strain = false
+	physical_contact = false
+
+
+func _move(displacement: Vector2) -> bool:
+	var before := drone.position
+	var hit := drone.move_and_collide(displacement)
+	motor_active = drone.position.distance_squared_to(before) > 0.0001
+	physical_contact = hit != null
+	motor_strain = physical_contact and displacement.length_squared() > 0.0001
+	queue_redraw()
+	return not physical_contact
+
+
 func navigate(target: Vector2, delta: float) -> bool:
 	var remaining := target - drone.position
 	if remaining.length() < 0.01:
 		return true
-	if drone.move_and_collide(remaining.limit_length(STEP_SPEED * delta)) != null:
+	if not _move(remaining.limit_length(STEP_SPEED * delta)):
 		return false
 	queue_redraw()
 	return drone.position.distance_to(target) < 0.01
@@ -79,10 +98,12 @@ func steer(axis: Vector2, speed: float, turn: float, delta: float) -> void:
 	if not is_instance_valid(drone):
 		return
 	if axis.y:
-		heading = fposmod(heading + axis.y * turn * delta, 360.0)
+		var change := axis.y * turn * delta
+		heading = fposmod(heading + change, 360.0)
+		motor_active = absf(change) > 0.0001
 	elif axis.x:
 		var forward := Vector2.from_angle(deg_to_rad(heading))
-		drone.move_and_collide(forward * axis.x * speed * SCALE_METRE * delta)
+		_move(forward * axis.x * speed * SCALE_METRE * delta)
 	queue_redraw()
 
 

@@ -11,7 +11,8 @@ tags: [m0, godot, python, local-bridge, developer-verification]
 This standalone development scene runs the existing one-drone, two-room,
 one-door fixture through Python and Godot. It is not the opening campaign
 or a claim that M0 is finished. It provides the Schematic and deck-aligned Drone
-views plus scoped direct steering. Sound and final integrated sign-off are later.
+views, scoped direct steering, and basic local audio. M0 completion remains a
+review and owner decision; this does not authorize M1/M2.
 
 ## Windows setup and launch
 
@@ -37,7 +38,7 @@ Start from the Python launcher, not from the scene alone: the latter has no
 semantic session. Type `move 1 R2`, wait for D1, use `status 1` or
 `queue show 1` if desired, then type `open D1`. Godot moves the drone after
 opening and Python confirms actual arrival. Close the scene window to end
-the launcher. Relaunch starts a fresh dev fixture (not a player save feature).
+the launcher. Relaunch to reset the entire fixture (not a player save or recovery feature).
 
 Pending requests are never replayed. If the command is locally busy, the
 input is retained for a deliberate retry. If the backend goes away before
@@ -65,6 +66,22 @@ state and disables submission. Start a fresh fixture to continue.
   `drone`, and `pause`. Use one physical key per action; duplicate bindings,
   unknown keys, and Enter/Tab/Escape are rejected without changing defaults.
 Global pause can use F1–F12 only so remapping cannot steal ordinary typing.
+
+## Local audio and confirmed feedback
+
+In Drone view, the simulated microphone has a quiet ambience bed, a motor
+cue for translation or in-place turn, strain for actual resisted movement,
+and a one-shot impact for initial physical contact. Schematic, a paused
+clock, lost desktop focus, missing feed evidence, and lost backend mute this
+channel. Returning to Drone plays current activity only; it does not replay
+missed impacts. This does not grant microphone permission or add damage.
+See [original placeholder audio provenance](assets/audio/README.md).
+
+The work strip and console report confirmed command/step and door-operation
+IDs. Queued/waiting work is not complete; an accepted separate door request
+still takes actual mechanism time. The visual obstruction label does not
+require hearing the strain or collision cue. Any unacknowledged request
+remains uncertain after disconnect.
 
 ## Runtime seam
 
@@ -110,6 +127,9 @@ $launcher = 'from koios_sim.composition.live import launch; import sys; sys.exit
 & $python -c $launcher $console --headless --path frontend --script res://tests/handoff_checks.gd
 & $python -c $launcher $console --headless --path frontend --script res://tests/handoff_checks.gd -- --partial
 & $python -c $launcher $console --headless --path frontend --script res://tests/handoff_checks.gd -- --sensing
+& $python -c $launcher $console --headless --path frontend --script res://tests/conformance_checks.gd
+& $python -c $launcher $console --headless --path frontend --script res://tests/conformance_checks.gd -- --interruption
+& $python -c $launcher $godot --log-file frontend/.godot/m0-mix-log.txt --path frontend --script res://tests/conformance_checks.gd -- --measure-audio
 ```
 
 The smoke runs the actual scene, command service and movement, then exits
@@ -121,3 +141,28 @@ and backend. Its headless mode simulates focus notices; the native mode opens a
 dedicated second window to exercise actual Windows focus loss and return. The handoff script runs the real mover against Python, taking over mid-route
 or crossing a physically passable partial opening. The [verification contract](../docs/Authoritative/Identity/verification_contract.md)
 owns the inherited Python, handbook and whitespace checks.
+
+The integrated headless run uses Dummy audio and verifies cue and application
+state only. The rendered mix run requires a non-Dummy Windows audio driver and
+checks downstream PCM (positive motor, strain, and collision; Schematic muted
+during motion; resumed current motor without stale collision; separate pause
+window focus, and connection-loss silence after settling). It does not record a microphone
+or certify loudspeaker output or subjective sound quality.
+
+## M0 requirement crosswalk and limits
+
+| Existing requirement | Evidence or remaining boundary |
+| --- | --- |
+| PROTOTYPE-01 | Live bridge uses Python-owned commands, clock and state; round-trip and interruption checks inspect confirmed outcomes. |
+| PROTOTYPE-02 | One m0 fixture: Drone 01 in slot 1, R1/D1/R2, working local DCL signal and workstation route; both views share the pose and actual door, with different evidence channels. |
+| PROTOTYPE-03 | Live control checks cover forward/reverse, turn-in-place, release, text focus, native window focus, pause and real takeover. |
+| PROTOTYPE-04 | Integrated cases cover wait, read-only status/queue inspection, separate opening/resume/arrival, stop without revival, and move/navigate alias parity; the command IDs trace actual outcomes. |
+| PROTOTYPE-05 | Original ambience/motor/strain/impact cues follow actual local activity in Drone only. Deployment audio and Fast Forward behavior have no trigger in this M0 fixture and are not implemented or claimed. |
+| PROTOTYPE-23 | The package labels provisional geometry, sensing/time/energy and audio separately from adopted game rules. Live Ellie, campaign/solar deployment, ship-wide systems, production saves, and other applications remain out of scope. |
+| PROTOTYPE-25 | No formal tester recruitment, observation protocol, subjective score, or playtest claim. These are executable technical checks only. |
+
+Reference captions: [room/door sketch](../assets/sketch/example_deck_traversal.png)
+illustrates connectivity; only R1-D1-R2 is included. The
+[Duskers schematic](../assets/sketch/Schematic1.PNG) informs readable labels,
+and the [Duskers drone view](../assets/sketch/Drone1.PNG) informs local cues;
+neither supplies Koios art, commands, or rules.

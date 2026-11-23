@@ -24,7 +24,7 @@ def serve(client: socket.socket, bridge: Bridge, child: subprocess.Popen[bytes])
             data = client.recv(16_384)
         except TimeoutError:
             continue
-        except ConnectionResetError:
+        except ConnectionError:
             return 0
         if not data:
             return 0

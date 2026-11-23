@@ -3,6 +3,7 @@ extends Node
 
 const LocalClient = preload("res://bridge/local_client.gd")
 const View = preload("res://features/traversal/room_view.gd")
+const Monitor = preload("res://components/audio/drone_monitor.gd")
 const Controls = preload("res://input/m0_controls.gd")
 const Draft = preload("res://input/command_draft.gd")
 var controls := Controls.new()
@@ -14,6 +15,8 @@ var handoff_pending := false
 const TICK_MS := 50
 const MAX_TICK_MS := 250
 var client := LocalClient.new()
+var monitor := Monitor.new()
+var ending := false
 var state: Dictionary = {}
 var pending_event: Dictionary = {}
 var clock_buffer := 0.0
@@ -23,11 +26,15 @@ var smoke_deadline := 0
 
 @onready var view := $RoomView as View
 @onready var status := $HUD/Status as Label
+@onready var activity := $HUD/Activity as Label
 @onready var output := $HUD/Output as RichTextLabel
 @onready var command := $HUD/Command as LineEdit
 
 
 func _ready() -> void:
+	add_child(monitor)
+	get_tree().auto_accept_quit = false
+	get_window().close_requested.connect(shutdown)
 	smoke = "--smoke" in OS.get_cmdline_user_args()
 	smoke_deadline = Time.get_ticks_msec() + 15000
 	client.received.connect(_snapshot)
@@ -39,6 +46,8 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if ending:
+		return
 	client.poll()
 	if smoke and Time.get_ticks_msec() >= smoke_deadline:
 		push_error("M0 smoke timed out before confirmed arrival")
@@ -67,6 +76,38 @@ func _process(delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if ending:
+		return
+	view.begin_physics_sample()
+	_move_body(delta)
+	monitor.sample(_feed_enabled(), view.motor_active, view.motor_strain, view.physical_contact)
+	_refresh_activity()
+
+
+func _feed_enabled() -> bool:
+	return (window_active and local_view and client.live and not state.is_empty()
+			and not bool(state.paused) and pause_target != true and state.sensor is Dictionary)
+
+
+func _refresh_activity() -> void:
+	if not client.live or state.is_empty():
+		activity.text = "No live command confirmation"
+		return
+	var items: PackedStringArray = []
+	var active: Variant = state.get("active")
+	if active is Dictionary:
+		items.append("%s.%s %s %s" % [active.command_id, str(active.step), active.phase, active.verb])
+	elif state.manual != null:
+		items.append("%s direct control" % state.manual)
+	var door_work: Variant = state.get("door_activity")
+	if door_work is Dictionary:
+		items.append("%s %s %s" % [door_work.command_id, door_work.door_id, door_work.phase])
+	if _feed_enabled() and view.motor_strain:
+		items.append("Local drive obstructed")
+	activity.text = " | ".join(items) if not items.is_empty() else "No active work"
+
+
+func _move_body(delta: float) -> void:
 	if not client.live or state.is_empty() or handoff_pending or not pending_event.is_empty() or bool(state.paused):
 		return
 	if state.manual != null:
@@ -126,6 +167,7 @@ func _snapshot(next: Dictionary, feedback: Array) -> void:
 			view.reset_to_confirmed(float(state.world.drone.heading_degrees))
 	if bool(state.paused):
 		controls.clear()
+		monitor.silence()
 	var world: Dictionary = state.world
 	var door_status := "no current evidence"
 	if not local_view and state.door_report is Dictionary:
@@ -133,7 +175,7 @@ func _snapshot(next: Dictionary, feedback: Array) -> void:
 	elif local_view and state.sensor is Dictionary and bool(state.sensor.door_visible):
 		door_status = str(world.door.position) + " (local)"
 	status.text = "%s | %s | %s (%s) in %s | %s %s | %d ms" % [
-		"Drone" if local_view else "Schematic", "PAUSED" if state.paused else world.deck_id,
+		"Drone" if local_view else "Schematic", str(world.deck_id) + (" PAUSED" if state.paused else ""),
 		world.drone.display_name, str(world.drone.slot), world.drone.room_id,
 		world.door.id, door_status, int(state.stamp_ms)]
 	command.editable = true
@@ -157,6 +199,7 @@ func _submit(text: String) -> void:
 func _lost(message: String) -> void:
 	pending_event.clear()
 	controls.clear()
+	monitor.silence()
 	command.editable = false
 	view.reset_to_confirmed()
 	status.text = "Offline | last confirmed state stays visible"
@@ -248,6 +291,8 @@ func _input(event: InputEvent) -> void:
 	if event.pressed and not event.echo and action in ["schematic", "drone"]:
 		local_view = action == "drone"
 		view.set_view(local_view)
+		if not local_view:
+			monitor.silence()
 		controls.clear()
 		get_viewport().set_input_as_handled()
 		return
@@ -259,6 +304,8 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:
 		window_active = false
 		controls.clear()
+		if is_node_ready():
+			monitor.silence()
 	elif what == NOTIFICATION_APPLICATION_FOCUS_IN or what == NOTIFICATION_WM_WINDOW_FOCUS_IN:
 		window_active = true
 		controls.clear()
@@ -291,10 +338,21 @@ func _scripted_smoke() -> bool:
 		2:
 			if world.drone.room_id == "R2" and world.door.position == "open" and state.active == null:
 				print("M0_SMOKE_OK: Godot mover arrived; Python confirmed R2 and left no active order.")
-				client.close()
-				get_tree().quit()
+				shutdown()
 				return true
 	return false
+
+
+func shutdown() -> void:
+	if ending:
+		return
+	ending = true
+	controls.clear()
+	monitor.silence()
+	client.close()
+	# Allow the engine audio thread to release the stopped streams.
+	await get_tree().create_timer(0.10).timeout
+	get_tree().quit()
 
 
 func _exit_tree() -> void:

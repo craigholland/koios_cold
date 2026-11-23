@@ -24,6 +24,12 @@ offset_top = 44.0
 offset_right = 775.0
 text = "Connecting to semantic process..."
 
+[node name="Activity" type="Label" parent="HUD"]
+offset_left = 24.0
+offset_top = 68.0
+offset_right = 775.0
+text = "No confirmed work yet"
+
 [node name="Output" type="RichTextLabel" parent="HUD"]
 offset_left = 24.0
 offset_top = 380.0

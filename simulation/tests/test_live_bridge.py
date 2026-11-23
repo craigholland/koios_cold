@@ -1,10 +1,11 @@
 import subprocess
 import sys
+from unittest.mock import Mock
 
 import pytest
 
 from koios_sim.composition.fixture import load_scenario
-from koios_sim.composition.live import launch
+from koios_sim.composition.live import launch, serve
 from koios_sim.interfaces.bridge import Bridge, MessageError
 from koios_sim.interfaces.frames import Decoder, FrameError, encode
 from koios_sim.services.traversal.session import Session
@@ -108,3 +109,41 @@ def test_startup_timeout_terminates_actual_child(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr("koios_sim.composition.live.subprocess.Popen", capture)
     assert launch([sys.executable, "-c", "import time; time.sleep(15)"], startup_seconds=0.2) == 1
     assert len(started) == 1 and started[0].poll() is not None
+
+
+def test_door_feedback_is_keyed_to_confirmed_work_and_external_energy() -> None:
+    session = Session(*load_scenario())
+    bridge = Bridge(session, "test-device")
+    bridge.handle({"kind": "hello", "seq": 1, "version": 1, "nonce": "test-device"})
+    bridge.handle({"kind": "pause", "seq": 2, "paused": True})
+    reply = bridge.handle({"kind": "command", "seq": 3, "text": "open D1"})
+    activity = reply["state"]["door_activity"]
+    assert activity["phase"] == "queued" and activity["door_id"] == "D1"
+    command_id = activity["command_id"]
+    assert reply["feedback"][0]["command_id"] == command_id
+    reply = bridge.handle({"kind": "tick", "seq": 4, "elapsed_ms": 250})
+    assert reply["state"]["stamp_ms"] == 0
+    assert reply["state"]["door_energy_mj"] == {"controller": 0, "mechanism": 0}
+    reply = bridge.handle({"kind": "pause", "seq": 5, "paused": False})
+    assert reply["state"]["door_activity"]["command_id"] == command_id
+    assert reply["state"]["door_activity"]["phase"] == "opening"
+    for seq in range(6, 14):
+        reply = bridge.handle({"kind": "tick", "seq": seq, "elapsed_ms": 250})
+    assert reply["state"]["door_activity"] is None
+    assert reply["state"]["world"]["door"]["position"] == "open"
+    assert reply["state"]["door_energy_mj"] == {"controller": 40_000, "mechanism": 1_000_000}
+    assert reply["feedback"] == [{
+        "stamp_ms": 2000, "command_id": command_id, "permanent_target_id": "m0/D1",
+        "submitted_slot": None, "origin": "godot", "text": "OPENED: D1.",
+    }]
+
+
+def test_local_receive_abort_settles_without_fabricating_ack() -> None:
+    session = Session(*load_scenario())
+    peer = Mock()
+    child = Mock()
+    child.poll.return_value = None
+    peer.recv.side_effect = ConnectionAbortedError("local Windows abort")
+    assert serve(peer, Bridge(session, "test-abort"), child) == 0
+    peer.sendall.assert_not_called()
+    assert session.stamp_ms == 0 and session.feedback() == ()
