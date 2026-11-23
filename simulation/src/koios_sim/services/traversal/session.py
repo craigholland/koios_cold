@@ -176,7 +176,8 @@ class Session:
                 self._replace_order(Order(command_id, origin, bound))
         else:
             self._submit_single(requests[0], command_id, origin)
-        self._retain_discovery()
+        if len(requests) > 1 or requests[0].verb not in (Verb.STATUS, Verb.QUEUE):
+            self._retain_discovery()
         return tuple(self._records[before:])
 
     def _binding_error(self, command_id: str, origin: str, failure: Failure, *,
@@ -370,7 +371,7 @@ class Session:
         if elapsed_ms is None:
             return ManualCycleResult.INVALID_INTERVAL
         self._advance(elapsed_ms)
-        confirmed = self.report_manual(lease_id, drone_id, self._stamp_ms, point, heading, release=release)
+        confirmed = self._reconcile_manual(lease_id, drone_id, self._stamp_ms, point, heading, release=release)
         self._retain_discovery()
         return ManualCycleResult.CONFIRMED if confirmed else ManualCycleResult.UNCONFIRMED
 
@@ -381,6 +382,13 @@ class Session:
         The point is in meters and heading in degrees. Release applies only to
         the matching current lease and a valid or unchanged final pose.
         """
+        confirmed = self._reconcile_manual(lease_id, drone_id, stamp_ms, point, heading, release=release)
+        if confirmed:
+            self._retain_discovery()
+        return confirmed
+
+    def _reconcile_manual(self, lease_id: str, drone_id: str, stamp_ms: int, point: Point,
+                          heading: float, *, release: bool) -> bool:
         lease, sensing = self._manual, self._sensing
         if (self._paused or lease is None or sensing is None or lease.id != lease_id
                 or lease.drone_id != drone_id or stamp_ms != self._stamp_ms):
@@ -394,7 +402,6 @@ class Session:
         if state is None:
             return False
         self._world = state
-        self._retain_discovery()
         if release:
             self._manual = None
         return True
