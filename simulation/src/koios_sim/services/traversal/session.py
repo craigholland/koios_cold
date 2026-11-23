@@ -354,11 +354,15 @@ class Session:
                 or event.step != order.index + 1 or event.stamp_ms != self.stamp_ms
                 or order.segment_ms < self.timing.waypoint_ms or to_mj(d.charge_wh) == 0):
             return False
+        heading = d.heading_degrees if event.heading_degrees is None else event.heading_degrees
+        if not 0 <= heading < 360:
+            return False
         if event.waypoint is Waypoint.BOUNDARY:
             if (order.crossed or order.current.target_id == d.room_id
                     or event.target_id != self.world.door.id
                     or not can_cross(self.world.door, event.point)):
                 return False
+            self.world = replace(self.world, drone=replace(d, heading_degrees=heading))
             order.crossed = True  # Verified doorway checkpoint, not a new reported room.
             order.segment_ms = 0
             return True
@@ -367,7 +371,9 @@ class Session:
         room = next(r for r in self.world.rooms if r.id == event.target_id)
         if not is_inside(room, event.point) or (room.id != d.room_id and not order.crossed):
             return False
-        self.world = replace(self.world, drone=replace(d, room_id=room.id, location=event.point))
+        self.world = replace(self.world, drone=replace(
+            d, room_id=room.id, location=event.point, heading_degrees=heading,
+        ))
         self._order_message(order, f"ARRIVED: {self.short_drone}; room={room.id}.")
         self._complete_step(order)
         self.drive_order()

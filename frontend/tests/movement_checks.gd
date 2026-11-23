@@ -25,7 +25,7 @@ func _run() -> void:
 		view.reset_to_confirmed()
 		for _i in range(60):
 			await physics_frame
-			view.navigate(view.room_center("B"), 1.0 / 60.0)
+			view.navigate(view.room_center("B"), 5.0, 120.0, 1.0 / 60.0)
 		var x := view.semantic_point().x
 		if (aperture < 1.0 and x >= 2.0) or (aperture == 1.0 and absf(x - 3.0) > 0.01):
 			push_error("Unexpected traversal at aperture %.2f: x=%f" % [aperture, x])

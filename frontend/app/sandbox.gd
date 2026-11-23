@@ -129,7 +129,8 @@ func _move_body(delta: float) -> void:
 	var destination := str(active.room_id)
 	var checkpoint := str(world.drone.room_id) != destination and not bool(active.checkpoint_seen)
 	var target := (view.gap_start() + view.gap_end()) / 2.0 if checkpoint else view.room_center(destination)
-	if not view.navigate(target, delta) or not bool(active.waypoint_ready):
+	var steering: Dictionary = state.steering
+	if not view.navigate(target, float(steering.speed_m_s), float(steering.turn_deg_s), delta) or not bool(active.waypoint_ready):
 		return
 	var p := view.semantic_point()
 	if checkpoint:
@@ -147,6 +148,7 @@ func _move_body(delta: float) -> void:
 		"target_id": str(world.door.id) if checkpoint else destination,
 		"x_m": p.x,
 		"y_m": p.y,
+		"heading": view.heading,
 	}
 
 
@@ -215,7 +217,8 @@ func _lost(message: String) -> void:
 	controls.clear()
 	monitor.silence()
 	command.editable = false
-	view.reset_to_confirmed()
+	if not state.is_empty():
+		view.reset_to_confirmed(float(state.world.drone.heading_degrees))
 	status.text = "Offline | last confirmed state stays visible"
 	output.add_text(message + "\n")
 	if smoke:

@@ -103,7 +103,7 @@ and its live state. Godot owns frame-rate movement and colliders, including
 the two sliding leaves; no per-frame round trip is needed. Arrival comes from
 actual movement, not from rendering the requested destination. The client
 sends bounded elapsed-millisecond requests and meaningful doorway/arrival
-reports using the last acknowledged Python timestamp and active order
+reports (including actual heading) using the last acknowledged Python timestamp and active order
 identity/step. The authoritative clock, commands and lasting state remain
 in Python. Manual pose reports carry the current direct-control ID and ship stamp.
 Takeover during a move reconciles the actual pose against the prior order before
@@ -111,7 +111,11 @@ cancelling it. The shared fixture radius and actual leaf aperture determine cros
 even during a sufficiently wide partial opening.
 During autonomous travel, the existing clock tick can carry one validated route
 pose. The same Python state drives current observation and the sensor cone; the
-sample does not count as arrival or add per-frame bridge calls.
+sample does not count as arrival or add per-frame bridge calls. The Godot mover
+turns in place toward each next autonomous waypoint at the provisional turn
+rate, then travels forward at the fixture speed. The arrival report confirms
+point and heading together for the same forward sensing; manual reverse still
+moves backward without turning.
 The provisional fixture defines speed, turn, light reach and sight angle, not new
 hardware ratings. One non-interactive marker tests limited discovery; its ID and
 location are not sent until observation permits them. Motion before confirmation is
@@ -134,6 +138,7 @@ $launcher = 'from koios_sim.composition.live import launch; import sys; sys.exit
 & $python -c $launcher $console --headless --path frontend --script res://tests/handoff_checks.gd
 & $python -c $launcher $console --headless --path frontend --script res://tests/handoff_checks.gd -- --partial
 & $python -c $launcher $console --headless --path frontend --script res://tests/handoff_checks.gd -- --sensing
+& $python -c $launcher $console --headless --path frontend --script res://tests/autonomous_heading_checks.gd
 & $python -c $launcher $console --headless --path frontend --script res://tests/conformance_checks.gd
 & $python -c $launcher $console --headless --path frontend --script res://tests/conformance_checks.gd -- --interruption
 & $python -c $launcher $console --headless --path frontend --script res://tests/command_console_checks.gd
