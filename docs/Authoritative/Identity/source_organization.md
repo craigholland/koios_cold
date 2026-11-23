@@ -32,7 +32,7 @@ A persistence contract belongs to its inward consumer: use the capability's doma
 
 ## Godot Frontend
 
-Use a separate planned `frontend/` Godot project. Choose the following responsibility homes as they become useful, then group scripts, scenes, and tests by capability or player surface.
+Use the separate [`frontend/` Godot project](../../../frontend/README.md). Its local contract lists implemented homes. Choose other homes as they become useful, then group scripts, scenes, and tests by capability or player surface.
 
 | Planned home under `frontend/` | Responsibility |
 | --- | --- |
@@ -51,7 +51,7 @@ The frontend can compose concepts from multiple Python capabilities. It need not
 - Use narrow, intentional public imports. Python can expose curated, side-effect-free package exports; Godot features consume named public contracts and reusable components rather than another feature's private scripts. Put translations at the boundary.
 - Extract a focused module when a file mixes owners, hides dependencies, or forces readers to hold unrelated context. The [Python size guidance](../Canon/Architecture/Craig-Architecture-Python.md#cohesion-and-size) is a review heuristic, not a quota. Keep provisional structures easy to relocate.
 - Put a concise `__ai__.md` beside durable source responsibilities. State purpose, ownership, allowed dependencies, important files, public surfaces, and checks that actually run. Use the [local contract standard](../Canon/Architecture/Craig-Architecture-__ai__-Template.md); use a parent contract until a narrower owner is warranted.
-- Keep production packages separate from tests. Use `simulation/tests/` for headless checks and plan `frontend/tests/`; group by the applicable responsibility and capability as the suite grows. Verify the rules headlessly, orchestration with injected fakes, persistence through its adapter, presentation in Godot, and the bridge with bounded integration tests when configured. Keep repository-wide tooling and documentation outside runtime packages.
+- Keep production packages separate from tests. Use `simulation/tests/` for headless checks and use `frontend/tests/` for scoped Godot checks; group by the applicable responsibility and capability as the suite grows. Verify the rules headlessly, orchestration with injected fakes, persistence through its adapter, presentation in Godot, and the bridge with bounded integration tests when configured. Keep repository-wide tooling and documentation outside runtime packages.
 
 ## Worked Navigation: Battery Status
 

@@ -1,0 +1,38 @@
+---
+title: "Live M0 Frontend Local Contract"
+created_date: 2026-11-23
+update_date: 2026-11-23
+status: APPROVED
+tags: [godot, m0, local-contract, presentation, bridge]
+---
+
+# Live M0 frontend local contract
+
+## Last Verified (CI)
+
+No hosted frontend CI is configured. See the PR handoff for local results.
+
+## Scope and dependencies
+
+Godot owns presentation, physical movement and collision. Python is the sole
+source of topology and lasting state. The frontend can project the application
+snapshot and report bounded physical outcomes; it cannot infer completion
+from an unacknowledged submission or define simulation power or timing rules.
+Current scope is one fixed overhead scene; later views, controls and audio
+are not implemented here.
+
+## File index and public boundary
+
+- `app/sandbox.tscn` and `sandbox.gd`: compose the scene, status, command UI,
+  semantic requests and the bounded traversal smoke.
+- `features/traversal/room_view.gd`: fixture projection, sliding-door
+  colliders and real local movement.
+- `bridge/json_frames.gd` and `local_client.gd`: bounded loopback transport,
+  one in-flight sequence, errors and uncertain outcomes without replay.
+- `tests/`: executable headless bridge and movement probes.
+
+## Verification
+
+Follow the [frontend setup and checks](README.md#verification). Use the
+[simulation contract](../simulation/__ai__.md) for Python ownership and the
+launcher. Do not report a headless pass as rendered or hosted CI evidence.

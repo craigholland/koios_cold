@@ -43,9 +43,10 @@ Review scope and accuracy in addition to mechanical checks:
 
 The installable headless Python M0 foundation has a developer status query, an Operations replay and a
 Ruff, mypy, and pytest baseline. Follow the [simulation setup and checks](../../../simulation/README.md#windows-setup-and-verification)
-from a clean environment. These checks exercise deterministic Operations, not real physical movement,
-Godot, inference, or persistence. This handbook does not create hosted application CI.
+from a clean environment. The Python-only checks exercise deterministic Operations, not the rendered scene,
+continuous Godot movement, inference or persistence. This handbook does not create hosted application CI.
 
+The minimal live Godot/Python sandbox has its own [setup and verification](../../../frontend/README.md#verification).
 Godot presentation and continuous physics need their own scoped verification. A headless simulation pass does not establish rendering, control responsiveness, sound quality, or end-to-end bridge correctness. Inference behavior and provider availability need separately scoped checks and authored fallback coverage when implemented.
 
 Do not present proposed baseline commands as runnable until their configuration exists. Do not run deferred builds or fixtures merely because another document describes them.

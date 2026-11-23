@@ -10,8 +10,9 @@ tags: [simulation, m0, python, development-setup, headless-checks]
 
 This headless M0 package displays the real read-only
 world query for one provisional drone, two flat rooms and one ordinary sliding door.
-It also exercises the deterministic M0 Operations subset. It does not run a Godot
-physics simulation, persistence or campaign content.
+It also exercises the deterministic M0 Operations subset. These headless tools do
+not run Godot, persistence or campaign content. For the integrated developer scene,
+use the [live frontend guide](../frontend/README.md).
 
 ## Windows setup and verification
 

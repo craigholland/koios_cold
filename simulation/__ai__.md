@@ -15,8 +15,9 @@ No hosted application CI is configured. Use the PR handoff for executed local re
 ## Scope and Purpose
 
 Own the headless Python M0 simulation, its developer query/replay, and its test fixture.
-The deterministic M0 Operations subset is available headlessly; Godot, continuous
-physics, persistence and campaign content are not implemented.
+The deterministic M0 Operations subset is available headlessly and through the
+[live Godot sandbox](../frontend/README.md). Godot owns continuous physics;
+persistence and campaign content remain outside this implementation.
 
 ## Dependencies and Architectural Rules
 
@@ -35,6 +36,9 @@ developer fixture files from inward layers or create an independent frontend wor
   feedback and physical reports.
 - `interfaces/cli.py`: developer JSON status output; `interfaces/operations.py`: grammar.
 - `composition/replay.py`: deterministic developer command and physical-event replay.
+- `composition/live.py`: starts and owns the isolated frontend child and loopback socket.
+- `interfaces/bridge.py` and `interfaces/frames.py`: adapt ordered requests to the same
+  Operations service and serialize confirmed snapshots and feedback.
 - `composition/fixture.py` and `composition/fixtures/m0.json`: decode and instantiate the
   provisional definition; geometry and initial values have one owner.
 - `composition/main.py`: installed developer entry point.
