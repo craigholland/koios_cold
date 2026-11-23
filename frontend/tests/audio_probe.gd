@@ -15,7 +15,8 @@ func setup(owner: Node) -> void:
 	bytes.fill(0)
 	silent.data = bytes
 	silent.loop_mode = AudioStreamWAV.LOOP_FORWARD
-	silent.loop_end = 1200
+	# The engine can mix the frame at loop_end. Silence has frames 0..1199.
+	silent.loop_end = 1199
 	for bus_name: StringName in NAMES:
 		var bus := AudioServer.get_bus_index(bus_name)
 		assert(bus >= 0)

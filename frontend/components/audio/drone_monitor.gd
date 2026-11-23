@@ -26,7 +26,8 @@ func _ready() -> void:
 		var cue: AudioStreamWAV = CUES[index].duplicate()
 		if index < 3:
 			cue.loop_mode = AudioStreamWAV.LOOP_FORWARD
-			cue.loop_end = cue.data.size() >> 1
+			# Godot 4.6's mixer can read the frame at loop_end; keep it in bounds.
+			cue.loop_end = roundi(cue.get_length() * cue.mix_rate) - 1
 		player.stream = cue
 		player.bus = CUE_BUSES[index]
 		player.volume_db = MIX_DB[index]
