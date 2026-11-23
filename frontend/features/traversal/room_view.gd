@@ -17,6 +17,7 @@ var physical_contact := false
 var heading := 0.0
 var drone_view := false
 var sensor: Variant = null
+var known_markers: Array = []
 var report: Variant = null
 
 
@@ -45,6 +46,7 @@ func apply(state: Dictionary) -> void:
 		heading = float(world.drone.heading_degrees)
 	last_confirmed = _point(world.drone.location)
 	sensor = state.get("sensor")
+	known_markers = state.get("known_markers", [])
 	report = state.get("door_report")
 	if absf(fraction - float(state.opening_fraction)) > 0.00001:
 		fraction = float(state.opening_fraction)
@@ -222,11 +224,14 @@ func _draw() -> void:
 			draw_dashed_line(gap_start(), gap_end(), color, WALL)
 		draw_string(font, (gap_start() + gap_end()) / 2 + Vector2(10, -12), str(door.id),
 					HORIZONTAL_ALIGNMENT_LEFT, -1, 16, color)
-	if drone_view and sensor is Dictionary:
-		for marker: Dictionary in sensor.visible_markers:
-			var p := _point(marker.point)
-			draw_circle(p, 5, Color("#e0ce7b"))
-			draw_string(font, p + Vector2(8, 5), str(marker.id), HORIZONTAL_ALIGNMENT_LEFT)
+	# Schematic shows retained knowledge; Drone shows only current observations.
+	var markers := known_markers
+	if drone_view:
+		markers = sensor.visible_markers if sensor is Dictionary else []
+	for marker: Dictionary in markers:
+		var p := _point(marker.point)
+		draw_circle(p, 5, Color("#e0ce7b"))
+		draw_string(font, p + Vector2(8, 5), str(marker.id), HORIZONTAL_ALIGNMENT_LEFT)
 	if is_instance_valid(drone):
 		draw_line(drone.position, drone.position + Vector2.from_angle(deg_to_rad(heading)) * 24,
 				Color("#87d7ff"), 3)

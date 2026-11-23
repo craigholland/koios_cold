@@ -100,12 +100,17 @@ class Session:
         profile = self._sensing
         steering = (Steering(profile.speed_m_s, profile.turn_deg_s, profile.body_radius_m)
                     if profile is not None else None)
+        # Static fixture locations are exposed only for already retained discoveries.
+        known_markers = () if profile is None else tuple(sorted(
+            (marker for marker in profile.markers if marker.id in self._discovered_markers),
+            key=lambda marker: marker.id,
+        ))
         return SessionSnapshot(
             self.status(), self._stamp_ms, self._paused, self._context, active,
             None if self._manual is None else self._manual.id,
             self._opening_fraction, door_activity, self._controller_energy_mj,
             self._mechanism_energy_mj, report, self._observation(),
-            tuple(sorted(self._discovered_markers)), steering,
+            tuple(sorted(self._discovered_markers)), known_markers, steering,
         )
 
     def update_door_services(self, door_id: str, facts: DoorServices) -> None:

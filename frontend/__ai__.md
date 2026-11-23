@@ -27,6 +27,8 @@ projections, focused direct controls and bounded local microphone cues.
   semantic requests and the bounded traversal smoke.
 - `features/traversal/room_view.gd`: both projections, sliding-door colliders
   and real local movement, including route-facing turns before translation.
+  Schematic draws retained marker positions from the current snapshot; Drone uses only
+  currently visible sensor records. Neither projection owns or mutates discovery.
 - `components/audio/drone_monitor.gd`: gates original cue playback from actual motion
   and view/connection state; it never owns damage or resource effects.
 - `input/m0_controls.gd`: scoped bindings and fresh-press focus gate.
