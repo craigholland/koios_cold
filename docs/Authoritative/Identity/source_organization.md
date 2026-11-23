@@ -2,13 +2,13 @@
 title: "Koios Source Organization"
 created_date: 2026-11-22
 update_date: 2026-11-22
-status: DRAFT
+status: APPROVED
 tags: [source-organization, code-navigation, architectural-ownership, python, godot, local-contracts]
 ---
 
 # Koios Source Organization
 
-This proposed standard owns concrete Koios source placement. It applies [Craig Architecture](../Canon/Architecture/Craig-Architecture.md) and the [development profile](development_profile.md) without changing either runtime's authority or replacing detailed design owners.
+This standard owns concrete Koios source placement. It applies [Craig Architecture](../Canon/Architecture/Craig-Architecture.md) and the [development profile](development_profile.md) without changing either runtime's authority or replacing detailed design owners.
 
 ## Current and Planned Homes
 
