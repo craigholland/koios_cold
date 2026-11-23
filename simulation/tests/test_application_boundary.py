@@ -78,10 +78,12 @@ def test_v1_wire_shape_and_optional_presentation_group_are_unchanged() -> None:
             "door_energy_mj", "active", "manual"}
     assert set(headless["state"]) == core
     data = live["state"]
-    assert set(data) == core | {"door_report", "sensor", "discovered_markers", "steering", "completion"}
+    assert set(data) == core | {
+        "door_report", "sensor", "discovered_markers", "known_markers", "steering", "completion",
+    }
     assert data["door_report"] == {"position": "closed", "stamp_ms": 0, "source": "controller"}
     assert set(data["sensor"]) == {"polygon", "door_visible", "visible_markers"}
-    assert data["discovered_markers"] == []
+    assert data["discovered_markers"] == [] and data["known_markers"] == []
     assert set(data["steering"]) == {"speed_m_s", "turn_deg_s", "body_radius_m"}
     assert data["completion"] == {
         "verbs": ["context", "help", "move", "navigate", "open", "queue", "status", "stop"],

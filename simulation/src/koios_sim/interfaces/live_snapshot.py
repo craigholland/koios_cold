@@ -41,6 +41,7 @@ def encode_snapshot(value: SessionSnapshot) -> dict[str, object]:
             "door_report": {**asdict(report), "source": "controller"} if report is not None else None,
             "sensor": asdict(sensor) if sensor is not None else None,
             "discovered_markers": list(value.discovered_markers),
+            "known_markers": [asdict(marker) for marker in value.known_markers],
             "steering": asdict(value.steering),
             "completion": {
                 "verbs": sorted(USAGE), "deck": value.context, "slot": str(value.world.drone.slot),

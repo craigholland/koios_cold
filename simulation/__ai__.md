@@ -38,7 +38,7 @@ developer fixture files from inward layers or create an independent frontend wor
   Operations inspection without owning work. `contracts.py` defines typed application
   inputs and results, including physical heading and manual-cycle admission outcomes.
 - `services/traversal/snapshots.py` defines frozen read models for work, door activity,
-  telemetry, steering, current observation and retained discovery. `Session.snapshot()`
+  telemetry, steering, current observation, and retained static marker IDs/positions. `Session.snapshot()`
   and `feedback()` do not advance, discover or expose mutable work.
 - `domain/traversal/observation.py` and `manual.py`: bounded sensing/occlusion,
   and manual pose geometry. `services/traversal/manual_control.py` reconciles

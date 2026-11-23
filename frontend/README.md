@@ -58,6 +58,9 @@ submission. Start a fresh fixture to continue; no line is replayed automatically
   Input. This does not pause or retarget accepted work. Both views share pose,
   heading, and door geometry; Schematic separates controller evidence from the
   blueprint and Drone view shows only current local light/line-of-sight.
+  A confirmed marker's location remains named on Schematic for this session,
+  even after looking away or losing eligible sensing; Drone still shows only
+  the markers visible now.
 - In Drone view, Left/Right turn in place and Up/Down drive forward/reverse
   relative to the drone's heading. Releasing controls or leaving focus stops
   steering immediately. A new nonrepeat key press is required after return.
@@ -139,6 +142,8 @@ $launcher = 'from koios_sim.composition.live import launch; import sys; sys.exit
 & $python -c $launcher $console --headless --path frontend --script res://tests/handoff_checks.gd -- --partial
 & $python -c $launcher $console --headless --path frontend --script res://tests/handoff_checks.gd -- --sensing
 & $python -c $launcher $console --headless --path frontend --script res://tests/autonomous_heading_checks.gd
+& $python -c $launcher $console --headless --path frontend --script res://tests/schematic_marker_checks.gd
+& $python -c $launcher $godot --log-file frontend/.godot/m0-marker-log.txt --path frontend --script res://tests/schematic_marker_checks.gd -- --inspect-render
 & $python -c $launcher $console --headless --path frontend --script res://tests/conformance_checks.gd
 & $python -c $launcher $console --headless --path frontend --script res://tests/conformance_checks.gd -- --interruption
 & $python -c $launcher $console --headless --path frontend --script res://tests/command_console_checks.gd
@@ -155,6 +160,10 @@ and backend. Its headless mode simulates focus notices; the native mode opens a
 dedicated second window to exercise actual Windows focus loss and return. The handoff script runs the real mover against Python, taking over mid-route
 or crossing a physically passable partial opening. The [verification contract](../docs/Authoritative/Identity/verification_contract.md)
 owns the inherited Python, handbook and whitespace checks.
+
+The rendered Schematic marker check inspects the actual dot and label pixels
+at the Python-provided position after the drone has looked and moved away.
+It also checks that those pixels are absent in Drone View without current sight.
 
 The integrated headless run uses Dummy audio and verifies cue and application
 state only. The rendered mix run requires a non-Dummy Windows audio driver and

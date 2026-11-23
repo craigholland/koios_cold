@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from koios_sim.domain.traversal.observation import Observation
+from koios_sim.domain.traversal.observation import Marker, Observation
 from koios_sim.domain.traversal.world import DoorPosition
 from koios_sim.services.traversal.contracts import Instruction, Phase
 from koios_sim.services.traversal.status import StatusSnapshot
@@ -49,7 +49,8 @@ class SessionSnapshot:
     """Point-in-time application values, safe to retain after later operations.
 
     Current observation can disappear if its route is lost; discovery records
-    what was previously retained. Neither reading nor serializing this value
+    what was previously retained, including known locations of static markers.
+    Neither reading nor serializing this value
     can advance work or add discovery.
     """
     world: StatusSnapshot
@@ -65,4 +66,5 @@ class SessionSnapshot:
     door_report: DoorReport | None
     observation: Observation | None
     discovered_markers: tuple[str, ...]
+    known_markers: tuple[Marker, ...]
     steering: Steering | None
