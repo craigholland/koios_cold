@@ -1,6 +1,12 @@
 {
   "classification": "provisional-development-fixture",
   "deck_id": "m0",
+  "timing": {
+    "opening_ms": 2000,
+    "waypoint_ms": 200,
+    "idle_w": 10,
+    "travel_w": 50
+  },
   "rooms": [
     {
       "id": "R1",

@@ -14,8 +14,9 @@ No hosted application CI is configured. Use the PR handoff for executed local re
 
 ## Scope and Purpose
 
-Own the headless Python M0 simulation, its developer query, and its test fixture.
-Godot, player-facing commands, persistence, and campaign content are not yet implemented.
+Own the headless Python M0 simulation, its developer query/replay, and its test fixture.
+The deterministic M0 Operations subset is available headlessly; Godot, continuous
+physics, persistence and campaign content are not implemented.
 
 ## Dependencies and Architectural Rules
 
@@ -28,7 +29,12 @@ developer fixture files from inward layers or create an independent frontend wor
 
 - `domain/traversal/world.py`: canonical in-memory world and invariant checks.
 - `services/traversal/status.py`: read-only `get_status(world)` application query.
-- `interfaces/cli.py`: developer JSON output only.
+- `domain/traversal/operation.py`: route, door, fixture timing and resource predicates.
+- `services/traversal/session.py` and `orders.py`: one live semantic state, clock and work.
+- `services/traversal/commands.py` and `contracts.py`: identity binding, structured requests,
+  feedback and physical reports.
+- `interfaces/cli.py`: developer JSON status output; `interfaces/operations.py`: grammar.
+- `composition/replay.py`: deterministic developer command and physical-event replay.
 - `composition/fixture.py` and `composition/fixtures/m0.json`: decode and instantiate the
   provisional definition; geometry and initial values have one owner.
 - `composition/main.py`: installed developer entry point.
