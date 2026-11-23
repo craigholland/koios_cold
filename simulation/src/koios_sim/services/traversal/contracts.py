@@ -55,6 +55,7 @@ class PhysicalEvent:
     waypoint: Waypoint
     target_id: str
     point: Point
+    heading_degrees: float | None = None
 
 
 class Phase(StrEnum):

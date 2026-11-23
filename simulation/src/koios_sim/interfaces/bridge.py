@@ -169,6 +169,7 @@ def _event(payload: object) -> PhysicalEvent:
         waypoint,
         _text(source, "target_id"),
         Point(_number(source, "x_m"), _number(source, "y_m")),
+        _number(source, "heading"),
     )
 
 

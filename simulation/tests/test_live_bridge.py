@@ -46,8 +46,13 @@ def test_sequences_and_stale_events_cannot_charge_or_complete_twice() -> None:
         "target_id": "R1",
         "x_m": 4,
         "y_m": 3,
+        "heading": 180,
     }
+    with pytest.raises(MessageError, match="physical result rejected"):
+        bridge.handle({"kind": "physical", "seq": sequence, "event": {**event, "heading": 360}})
+    assert session.world.drone.heading_degrees == 0
     reply = bridge.handle({"kind": "physical", "seq": sequence, "event": event})
+    assert reply["state"]["world"]["drone"]["heading_degrees"] == 180
     assert any("COMPLETED" in row["text"] for row in reply["feedback"])
     before = session.status(), session.stamp_ms, session.feedback()
     with pytest.raises(MessageError, match="sequence"):

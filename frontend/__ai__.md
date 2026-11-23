@@ -26,7 +26,7 @@ projections, focused direct controls and bounded local microphone cues.
 - `app/sandbox.tscn` and `sandbox.gd`: compose the scene, status, command UI,
   semantic requests and the bounded traversal smoke.
 - `features/traversal/room_view.gd`: both projections, sliding-door colliders
-  and real local movement.
+  and real local movement, including route-facing turns before translation.
 - `components/audio/drone_monitor.gd`: gates original cue playback from actual motion
   and view/connection state; it never owns damage or resource effects.
 - `input/m0_controls.gd`: scoped bindings and fresh-press focus gate.

@@ -2,7 +2,6 @@ extends Node2D
 ## Draw the snapshot geometry and move the drone using actual Godot colliders.
 
 const SCALE_METRE := 42.0
-const STEP_SPEED := 5.0 * SCALE_METRE
 const WALL := 3.0
 var rooms: Dictionary = {}
 var door: Dictionary = {}
@@ -79,14 +78,20 @@ func _move(displacement: Vector2) -> bool:
 	return not physical_contact
 
 
-func navigate(target: Vector2, delta: float) -> bool:
+func navigate(target: Vector2, speed: float, turn: float, delta: float) -> bool:
 	var remaining := target - drone.position
 	if remaining.length() < 0.01:
 		return true
-	if not _move(remaining.limit_length(STEP_SPEED * delta)):
+	var desired := remaining.angle()
+	var current := deg_to_rad(heading)
+	if absf(angle_difference(current, desired)) > 0.001:
+		var next := rotate_toward(current, desired, deg_to_rad(turn) * delta)
+		heading = fposmod(rad_to_deg(next), 360.0)
+		motor_active = absf(angle_difference(current, next)) > 0.0001
+		queue_redraw()
 		return false
-	queue_redraw()
-	return drone.position.distance_to(target) < 0.01
+	heading = fposmod(rad_to_deg(desired), 360.0)
+	return _move(remaining.limit_length(speed * SCALE_METRE * delta)) and drone.position.distance_to(target) < 0.01
 
 
 func set_view(local: bool) -> void:

@@ -33,7 +33,7 @@ developer fixture files from inward layers or create an independent frontend wor
 - `domain/traversal/operation.py`: route, door, fixture timing and resource predicates.
 - `services/traversal/session.py` and `orders.py`: one live semantic state, clock and work.
 - `services/traversal/commands.py` and `contracts.py`: identity binding, structured requests,
-  feedback and physical reports.
+  feedback and physical reports, including heading in live waypoint confirmation.
 - `domain/traversal/observation.py` and `manual.py`: bounded sensing/occlusion,
   and manual pose geometry. `services/traversal/manual_control.py` reconciles
   only the active direct-control lease; the session owns discovery and authority.
