@@ -1,7 +1,7 @@
 ---
 title: "Koios Development Verification Contract"
 created_date: 2026-11-21
-update_date: 2026-11-21
+update_date: 2026-11-22
 status: APPROVED
 tags: [documentation-validation, executable-checks, verification-evidence, test-readiness, final-head-freshness]
 ---
@@ -34,7 +34,7 @@ Review scope and accuracy in addition to mechanical checks:
 - Each detailed rule has a clear owner and cross-references remain navigable.
 - Canon stays portable and Identity contains the actual Koios choices.
 - Documents distinguish accepted requirements, draft policies, unresolved inputs, and implemented behavior.
-- Local contracts describe current responsibilities rather than a progress log.
+- Local contracts describe current responsibilities rather than a progress log. From the task entry point, a contributor can trace the affected concept to its owner, public surface, and tests; review cohesion, placement, and inward dependencies against [source organization](source_organization.md).
 - Agent roles, actual authentication, technical permissions, and delegated authority remain distinct.
 - Task PRs target `development`; release promotion and tags follow the owning agent workflow.
 - A fresh contributor can locate the actual design sources required by the task.

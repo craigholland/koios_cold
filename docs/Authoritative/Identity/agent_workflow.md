@@ -1,7 +1,7 @@
 ---
 title: "Koios Agent Development Workflow"
 created_date: 2026-11-21
-update_date: 2026-11-21
+update_date: 2026-11-22
 status: APPROVED
 tags: [agent-workflow, github-identities, task-intake, code-review, handoff, owner-authority, development-integration, release-promotion, version-tags]
 ---
@@ -35,7 +35,7 @@ Craig's existing authorization persists for necessary in-scope operations. Do no
 Read root `AGENTS.md`, the handbook's required sources, the assigned issue or work packet, and affected local contracts. Confirm:
 
 - Objective, actual authoritative requirements, and acceptance criteria.
-- Scope, non-goals, expected files, and existing owners to reuse.
+- Scope, non-goals, expected files, and existing owners to reuse. Identify intended placement and public surfaces using [source organization](source_organization.md) and the nearest local contracts.
 - Repository, current branch, clean separation of task changes, and PR target.
 - Available tools, runnable checks, and required evidence.
 - Review owner, expected next action, and any delegated merge or external action.
@@ -71,7 +71,7 @@ Establishing these branch roles does not itself declare a software release, crea
 
 ## Review and Rework
 
-The reviewer checks behavior, architecture, acceptance coverage, source ownership, relevant negative paths, and the immediate integration context. Automated checks are inputs to this judgment.
+The reviewer checks behavior, architecture, acceptance coverage, source ownership, relevant negative paths, and the immediate integration context. Check that file and folder placement supports discovery, modules remain cohesive, dependencies point inward, and affected local contracts describe the actual public surfaces. Automated checks are inputs to this judgment.
 
 Record findings with a concrete consequence and affected surface. The implementer repairs in-scope findings or gives a visible, evidence-based disposition. Refresh affected checks and review when implementation or requirements change. Consequential design changes return to Craig rather than becoming review-time invention.
 

@@ -1,7 +1,7 @@
 ---
 title: "Coding Agent Entry Point"
 created_date: 2026-11-21
-update_date: 2026-11-21
+update_date: 2026-11-22
 status: APPROVED
 tags: [coding-agents, required-reading, task-scope, development-workflow, branch-policy, source-ownership]
 ---
@@ -14,7 +14,7 @@ Read [the development handbook](docs/README.md) before changing this repository.
 
 1. [Authoritative documentation](docs/Authoritative/README.md).
 2. [Craig Architecture](docs/Authoritative/Canon/Architecture/Craig-Architecture.md).
-3. [Koios development profile](docs/Authoritative/Identity/development_profile.md).
+3. [Koios development profile](docs/Authoritative/Identity/development_profile.md) and [source organization](docs/Authoritative/Identity/source_organization.md).
 4. [Agent workflow](docs/Authoritative/Identity/agent_workflow.md) and the assigned task or PR.
 5. The relevant architecture supplements and nearest `__ai__.md`, then parent contracts as needed.
 6. [Verification contract](docs/Authoritative/Identity/verification_contract.md) and affected source owners.
