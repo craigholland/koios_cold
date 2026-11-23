@@ -6,6 +6,7 @@ from importlib.resources import files
 from math import isfinite
 from typing import TypeVar, cast
 
+from koios_sim.domain.traversal.operation import Timing
 from koios_sim.domain.traversal.world import (
     Door,
     DoorPosition,
@@ -24,20 +25,35 @@ class FixtureError(ValueError):
 
 
 def load_m0() -> World:
+    return load_scenario()[0]
+
+
+def load_scenario() -> tuple[World, Timing]:
     resource = files(__package__).joinpath("fixtures", "m0.json")
-    return decode_fixture(resource.read_text(encoding="utf-8"))
+    return decode_scenario(resource.read_text(encoding="utf-8"))
 
 
 def decode_fixture(text: str) -> World:
+    return decode_scenario(text)[0]
+
+
+def decode_scenario(text: str) -> tuple[World, Timing]:
     try:
         root = _record(json.loads(text, object_pairs_hook=_unique_object), "fixture", (
-            "classification", "deck_id", "rooms", "door", "drone",
+            "classification", "deck_id", "rooms", "door", "drone", "timing",
         ))
         if root["classification"] != "provisional-development-fixture":
             raise FixtureError("fixture classification must be provisional-development-fixture")
         a, b = _pair(root["rooms"], "rooms")
-        return World(_string(root["deck_id"], "deck_id"), (_room(a), _room(b)),
-                     _door(root["door"]), _drone(root["drone"]))
+        world = World(_string(root["deck_id"], "deck_id"), (_room(a), _room(b)),
+                      _door(root["door"]), _drone(root["drone"]))
+        timings = _Fields(root["timing"], "timing", (
+            "opening_ms", "waypoint_ms", "idle_w", "travel_w",
+        ))
+        return world, Timing(
+            timings("opening_ms", _integer), timings("waypoint_ms", _integer),
+            timings("idle_w", _integer), timings("travel_w", _integer),
+        )
     except FixtureError:
         raise
     except (ValueError, OverflowError) as exc:
