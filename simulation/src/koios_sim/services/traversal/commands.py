@@ -7,6 +7,7 @@ from koios_sim.services.traversal.snapshots import SessionSnapshot
 
 
 def target_id(world: World, context: str, kind: str, token: str) -> str | Failure:
+    """Resolve a local or deck-qualified address against known immutable world facts."""
     prefix, slash, local = token.partition("/")
     deck, name = (prefix, local) if slash else (context, prefix)
     candidates = (
@@ -27,6 +28,11 @@ def assigned_slot(world: World, value: str) -> int | Failure:
 
 
 def bind_order(world: World, context: str, requests: tuple[Request, ...]) -> tuple[Instruction, ...] | Failure:
+    """Bind all instructions or return the first failure without creating live work.
+
+    Preserve target-first error precedence and bind the submitted slot and
+    permanent drone identity, independent of later projection or camera selection.
+    """
     slots = {request.args[0] for request in requests if request.verb is Verb.MOVE}
     if len(slots) != 1 or any(r.verb not in (Verb.MOVE, Verb.OPEN) for r in requests):
         return Failure(
@@ -51,6 +57,7 @@ def bind_order(world: World, context: str, requests: tuple[Request, ...]) -> tup
 
 
 def format_query(snapshot: SessionSnapshot, verb: Verb) -> str:
+    """Format status or remaining queue from a detached inspection; no mutations."""
     drone, order = snapshot.world.drone, snapshot.active
     submitted = order.current.submitted_slot if order else "none"
     detail = (f"{drone.display_name} [{drone.permanent_id}; current slot {drone.slot}; "

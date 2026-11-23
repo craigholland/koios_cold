@@ -44,6 +44,14 @@ from koios_sim.services.traversal.status import StatusSnapshot, get_status
 
 
 class Session:
+    """Own one in-memory M0 application from fixture startup through session end.
+
+    Keeps the canonical world, accepted order and independent door work, sole
+    semantic clock, control lease, resource counters, feedback and retained
+    discovery. Callers inject immutable fixture values and report commands,
+    elapsed time, external facts or observed physics. Read values are detached;
+    the application neither owns a connection nor interprets wire grammar.
+    """
     def __init__(self, world: World, timing: Timing, sensing: Sensing | None = None) -> None:
         self._world = world
         self._timing = timing
@@ -73,6 +81,7 @@ class Session:
         return tuple(self._records)
 
     def snapshot(self) -> SessionSnapshot:
+        """Project committed state, current evidence and retained discovery without writing."""
         order, opening = self._order, self._opening
         door = self._world.door
         active = (ActiveOrder(order.command_id, order.index + 1, order.phase,
@@ -100,6 +109,11 @@ class Session:
         )
 
     def update_door_services(self, door_id: str, facts: DoorServices) -> None:
+        """Apply external facts for the identified door, not a world replacement.
+
+        An already active opening rechecks changed service facts at its next
+        semantic advance; no time or energy is consumed by this input alone.
+        """
         door = self._world.door
         if door_id != door.id:
             raise ValueError("unknown door for the supplied service facts")
@@ -107,6 +121,7 @@ class Session:
         self._retain_discovery()
 
     def update_drone_link(self, drone_id: str, *, local_dcl: bool, workstation_route: bool) -> None:
+        """Update the identified drone's two link facts without changing pose or orders."""
         drone = self._world.drone
         if drone_id != drone.permanent_id:
             raise ValueError("unknown drone for the supplied link facts")
@@ -122,6 +137,7 @@ class Session:
         return observe(self._world, profile, self._opening_fraction)
 
     def _retain_discovery(self) -> None:
+        """Accumulate only currently eligible observations at an application boundary."""
         observation = self._observation()
         if observation is not None:
             self._discovered_markers.update(marker.id for marker in observation.visible_markers)
@@ -141,9 +157,15 @@ class Session:
         return record
 
     def record_command_feedback(self, origin: str, text: str) -> Feedback:
+        """Record a parser/help result with the next application ID and current clock."""
         return self._emit(self._command_id(), origin, text)
 
     def submit(self, requests: tuple[Request, ...], origin: str) -> tuple[Feedback, ...]:
+        """Handle nonempty parsed requests atomically and return only new feedback.
+
+        Resolve every target and slot before replacing accepted work. Queue/status
+        commands can record feedback but do not mutate the accepted order.
+        """
         before = len(self._records)
         command_id = self._command_id()
         if len(requests) > 1 or requests[0].verb is Verb.MOVE:
@@ -206,6 +228,7 @@ class Session:
         return f"{d.display_name} ({d.slot})"
 
     def set_paused(self, paused: bool) -> None:
+        """Revoke direct control on pause; on resume, admit pending door requests in order."""
         self._paused = paused
         if paused:
             self._manual = None
@@ -217,6 +240,7 @@ class Session:
         self._retain_discovery()
 
     def _replace_order(self, order: Order) -> None:
+        """Replace validated work and revoke prior control and order-owned opening only."""
         self._manual = None
         # A cancelled order must not commit a delayed opening or route event.
         if self._opening is not None and self._opening.queued_step:
@@ -232,6 +256,7 @@ class Session:
         self._drive_order()
 
     def _stop(self, command_id: str, origin: str) -> None:
+        """Cancel the lease and route without cancelling independently started door work."""
         self._manual = None
         self._order = None
         if self._opening is not None and self._opening.queued_step:
@@ -250,6 +275,11 @@ class Session:
         return 0.0
 
     def begin_manual(self, drone_id: str, handoff: RoutePose | None = None) -> bool:
+        """Grant the sole lease only after reconciling any currently moving route.
+
+        A moving route requires a compatible pose at its current step and timestamp.
+        An accepted handoff commits its physical state before cancelling the route.
+        """
         if (self._paused or self._sensing is None or self._manual is not None
                 or drone_id != self._world.drone.permanent_id
                 or not self._world.drone.workstation_route_available
@@ -280,6 +310,12 @@ class Session:
         return confirmed
 
     def apply_tick(self, elapsed_ms: int, pose: RoutePose | None = None) -> None:
+        """Apply a nonnegative millisecond tick, with an optional matching pose sample.
+
+        If the pose cannot reconcile, still advance the valid interval once.
+        A pose can fail after advancing the clock when work exhausted its charge;
+        in that case the fallback must not advance or charge it again.
+        """
         before = self._stamp_ms
         moving = self._moving_order()
         confirmed = (pose is not None and not self._paused and moving is not None
@@ -289,6 +325,11 @@ class Session:
         self._retain_discovery()
 
     def _reconcile_route_pose(self, order: Order, handoff: RoutePose) -> bool:
+        """Validate step/stamp, opening, displacement and heading before committing pose.
+
+        Elapsed time is accounted before applying the pose; exhaustion can still
+        invalidate the active order and leave the location unconfirmed.
+        """
         sensing = self._sensing
         d = self._world.drone
         if (sensing is None or handoff.command_id != order.command_id
@@ -313,6 +354,12 @@ class Session:
     def manual_cycle(self, lease_id: str, drone_id: str, stamp_ms: int | None,
                      elapsed_ms: int | None, point: Point, heading: float, *,
                      release: bool) -> ManualCycleResult:
+        """Admit a millisecond lease sample, charge once, then reconcile its pose.
+
+        A stale lease or timestamp never advances time. Missing decoded timing
+        is distinguished only when reaching that validation step. An admitted
+        interval still advances when the physical report fails to reconcile.
+        """
         lease = self._manual
         if lease is None or lease.id != lease_id or lease.drone_id != drone_id or self._paused:
             return ManualCycleResult.UNCONFIRMED
@@ -329,6 +376,11 @@ class Session:
 
     def report_manual(self, lease_id: str, drone_id: str, stamp_ms: int, point: Point,
                       heading: float, *, release: bool) -> bool:
+        """Reconcile at the current committed stamp without advancing time again.
+
+        The point is in meters and heading in degrees. Release applies only to
+        the matching current lease and a valid or unchanged final pose.
+        """
         lease, sensing = self._manual, self._sensing
         if (self._paused or lease is None or sensing is None or lease.id != lease_id
                 or lease.drone_id != drone_id or stamp_ms != self._stamp_ms):
@@ -387,6 +439,7 @@ class Session:
                             "Queue halted; remaining instructions retained.")
 
     def _drive_order(self) -> None:
+        """Start eligible work, pumping immediate already-open steps without recursion."""
         # An already-open door can complete synchronously. Pump the queue iteratively.
         while True:
             before = self._order
@@ -419,6 +472,7 @@ class Session:
                                 f"{self._short_drone}; {step.verb} {step.target_id}.")
 
     def _complete_step(self, order: Order) -> None:
+        """Finish the final instruction or reset route counters for the next step."""
         if order.index + 1 == len(order.instructions):
             self._order_message(order,
                                 f"COMPLETED {order.command_id}: {self._short_drone}; queue empty.")
@@ -432,10 +486,12 @@ class Session:
             order.last_pose_travel_ms = 0
 
     def advance(self, elapsed_ms: int) -> None:
+        """Advance semantic milliseconds without a pose sample; pause freezes the clock."""
         self._advance(elapsed_ms)
         self._retain_discovery()
 
     def _advance(self, elapsed_ms: int) -> None:
+        """Subdivide at door completion and integer-energy exhaustion boundaries."""
         if type(elapsed_ms) is not int or elapsed_ms < 0:
             raise ValueError("elapsed time must be a nonnegative integer in milliseconds")
         if self._paused:
@@ -485,6 +541,7 @@ class Session:
         return None
 
     def _charge(self, elapsed_ms: int, moving: Order | None) -> None:
+        """Debit one admitted interval; watts times milliseconds gives millijoules."""
         d, door = self._world.drone, self._world.door
         if door.services.controller_powered:
             self._controller_energy_mj += CONTROLLER_W * elapsed_ms
@@ -513,7 +570,12 @@ class Session:
         self._drive_order()
 
     def report_physical(self, event: PhysicalEvent) -> bool:
-        """Accept one timely, identity-bound report from the physics boundary."""
+        """Reconcile a physical checkpoint or arrival for the current route step.
+
+        A checkpoint certifies doorway transit without moving the confirmed room;
+        arrival requires the proper room and a prior crossing when applicable.
+        Only accepted arrivals progress work. Rejected events mutate nothing.
+        """
         order = self._order
         d = self._world.drone
         if (self._paused or order is None or order.phase is not Phase.RUNNING

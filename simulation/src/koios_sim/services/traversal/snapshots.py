@@ -10,6 +10,7 @@ from koios_sim.services.traversal.status import StatusSnapshot
 
 @dataclass(frozen=True, slots=True)
 class ActiveOrder:
+    """Stable read of one addressed step and remaining immutable instructions."""
     command_id: str
     step: int
     phase: Phase
@@ -45,6 +46,12 @@ class Steering:
 
 @dataclass(frozen=True, slots=True)
 class SessionSnapshot:
+    """Point-in-time application values, safe to retain after later operations.
+
+    Current observation can disappear if its route is lost; discovery records
+    what was previously retained. Neither reading nor serializing this value
+    can advance work or add discovery.
+    """
     world: StatusSnapshot
     stamp_ms: int
     paused: bool

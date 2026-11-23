@@ -1,21 +1,19 @@
 """Adapt local M0 messages to the existing authoritative command/event service."""
 
-from dataclasses import asdict
 from math import isfinite
 from secrets import compare_digest
 from typing import cast
 
 from koios_sim.domain.traversal.operation import Waypoint
 from koios_sim.domain.traversal.world import Point
-from koios_sim.interfaces.operations import USAGE, execute
+from koios_sim.interfaces.live_snapshot import encode_feedback, encode_snapshot
+from koios_sim.interfaces.operations import execute
 from koios_sim.services.traversal.contracts import (
-    Feedback,
     ManualCycleResult,
     PhysicalEvent,
 )
 from koios_sim.services.traversal.manual_control import RoutePose
 from koios_sim.services.traversal.session import Session
-from koios_sim.services.traversal.snapshots import SessionSnapshot
 
 MAX_ADVANCE_MS = 250
 
@@ -25,6 +23,12 @@ class MessageError(ValueError):
 
 
 class Bridge:
+    """One authenticated, ordered M0 delivery session over an injected application.
+
+    Owns a connection-local nonce check, sequence and feedback cursor, not ship
+    time, world state or work. A new connection gets a new bridge; rejected
+    protocol messages do not advance its cursor or acknowledge a request.
+    """
     def __init__(self, session: Session, nonce: str) -> None:
         self._session = session
         self._nonce = nonce
@@ -33,6 +37,13 @@ class Bridge:
         self._feedback_cursor = 0
 
     def handle(self, message: dict[str, object]) -> dict[str, object]:
+        """Validate and dispatch one v1 message, then return newly delivered feedback.
+
+        Malformed protocol or rejected physical-completion reports raise MessageError
+        rather than acknowledging the sequence. A valid manual/control request can
+        return an unconfirmed note with an acknowledgement, as distinct from a
+        protocol error. Application feedback remains owned by Session.
+        """
         seq = _int(message, "seq", 1)
         if seq != self._sequence + 1:
             raise MessageError("request sequence mismatch; not executed")
@@ -80,11 +91,12 @@ class Bridge:
             "seq": seq,
             "kind": "snapshot",
             "note": note,
-            "state": _snapshot(self._session.snapshot()),
-            "feedback": [_feedback(entry) for entry in feedback[before:]],
+            "state": encode_snapshot(self._session.snapshot()),
+            "feedback": [encode_feedback(entry) for entry in feedback[before:]],
         }
 
     def _manual_cycle(self, message: dict[str, object]) -> bool:
+        """Decode transport fields without preempting application admission order."""
         point = Point(_number(message, "x_m"), _number(message, "y_m"))
         heading = _number(message, "heading")
         release = _bool(message, "release")
@@ -104,45 +116,8 @@ class Bridge:
         return result is ManualCycleResult.CONFIRMED
 
 
-def _feedback(value: Feedback) -> dict[str, object]:
-    return asdict(value)
-
-
-def _snapshot(value: SessionSnapshot) -> dict[str, object]:
-    active, door = value.active, value.door_activity
-    result = {
-        "world": asdict(value.world),
-        "stamp_ms": value.stamp_ms,
-        "paused": value.paused,
-        "opening_fraction": value.opening_fraction,
-        "door_activity": {
-            "command_id": door.command_id, "phase": "opening" if door.opening else "queued",
-            "door_id": door.door_id, "origin": door.origin,
-        } if door is not None else None,
-        "door_energy_mj": {"controller": value.controller_energy_mj, "mechanism": value.mechanism_energy_mj},
-        "active": {
-            "command_id": active.command_id, "step": active.step, "phase": active.phase,
-            "verb": active.current.verb, "room_id": active.current.target_id,
-            "checkpoint_seen": active.crossed, "waypoint_ready": active.waypoint_ready,
-        } if active is not None else None,
-        "manual": value.manual_lease,
-    }
-    if value.steering is not None:
-        report, sensor = value.door_report, value.observation
-        result.update({
-            "door_report": {**asdict(report), "source": "controller"} if report is not None else None,
-            "sensor": asdict(sensor) if sensor is not None else None,
-            "discovered_markers": list(value.discovered_markers),
-            "steering": asdict(value.steering),
-            "completion": {
-                "verbs": sorted(USAGE), "deck": value.context, "slot": str(value.world.drone.slot),
-                "rooms": [room.id for room in value.world.rooms], "doors": [value.world.door.id],
-            },
-        })
-    return result
-
-
 def _event(payload: object) -> PhysicalEvent:
+    """Decode a waypoint report; identity, geometry and timing are checked by Session."""
     if not isinstance(payload, dict):
         raise MessageError("expected event object")
     source = cast(dict[str, object], payload)
@@ -201,6 +176,7 @@ def _optional_int(source: dict[str, object], key: str) -> int | None:
 
 
 def _route_pose(payload: object) -> RoutePose:
+    """Decode the existing route sample, with the independent wire interval cap."""
     if not isinstance(payload, dict):
         raise MessageError("handoff must be an object")
     handoff = cast(dict[str, object], payload)
