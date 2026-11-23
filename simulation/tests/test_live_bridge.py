@@ -32,15 +32,15 @@ def test_sequences_and_stale_events_cannot_charge_or_complete_twice() -> None:
     bridge = Bridge(session, "test-private")
     bridge.handle({"kind": "hello", "seq": 1, "version": 1, "nonce": "test-private"})
     bridge.handle({"kind": "command", "seq": 2, "text": "move 1 R1"})
-    assert session.order is not None
+    assert session.snapshot().active is not None
     sequence = 3
     for _ in range(2):
         bridge.handle({"kind": "tick", "seq": sequence, "elapsed_ms": 120})
         sequence += 1
     event = {
-        "command_id": session.order.command_id,
+        "command_id": session.snapshot().active.command_id,
         "step": 1,
-        "drone_id": session.world.drone.permanent_id,
+        "drone_id": session.status().drone.permanent_id,
         "stamp_ms": 240,
         "waypoint": "arrival",
         "target_id": "R1",
@@ -50,18 +50,18 @@ def test_sequences_and_stale_events_cannot_charge_or_complete_twice() -> None:
     }
     with pytest.raises(MessageError, match="physical result rejected"):
         bridge.handle({"kind": "physical", "seq": sequence, "event": {**event, "heading": 360}})
-    assert session.world.drone.heading_degrees == 0
+    assert session.status().drone.heading_degrees == 0
     reply = bridge.handle({"kind": "physical", "seq": sequence, "event": event})
     assert reply["state"]["world"]["drone"]["heading_degrees"] == 180
     assert any("COMPLETED" in row["text"] for row in reply["feedback"])
-    before = session.status(), session.stamp_ms, session.feedback()
+    before = session.status(), session.snapshot().stamp_ms, session.feedback()
     with pytest.raises(MessageError, match="sequence"):
         bridge.handle({"kind": "tick", "seq": sequence, "elapsed_ms": 120})
     with pytest.raises(MessageError, match="physical result rejected"):
         bridge.handle({"kind": "physical", "seq": sequence + 1, "event": event})
     with pytest.raises(MessageError, match="unsupported"):
         bridge.handle({"kind": "query", "seq": sequence + 1})
-    assert (session.status(), session.stamp_ms, session.feedback()) == before
+    assert (session.status(), session.snapshot().stamp_ms, session.feedback()) == before
 
 
 def test_handshake_and_bad_tick_have_no_effect() -> None:
@@ -73,7 +73,7 @@ def test_handshake_and_bad_tick_have_no_effect() -> None:
     for invalid in (True, 500, -1, "5"):
         with pytest.raises(MessageError):
             bridge.handle({"kind": "tick", "seq": 2, "elapsed_ms": invalid})
-    assert session.stamp_ms == 0 and not session.feedback()
+    assert session.snapshot().stamp_ms == 0 and not session.feedback()
 
 
 def test_actual_launcher_socket_and_child_exit() -> None:
@@ -151,4 +151,4 @@ def test_local_receive_abort_settles_without_fabricating_ack() -> None:
     peer.recv.side_effect = ConnectionAbortedError("local Windows abort")
     assert serve(peer, Bridge(session, "test-abort"), child) == 0
     peer.sendall.assert_not_called()
-    assert session.stamp_ms == 0 and session.feedback() == ()
+    assert session.snapshot().stamp_ms == 0 and session.feedback() == ()

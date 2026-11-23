@@ -5,13 +5,17 @@ from math import isfinite
 from secrets import compare_digest
 from typing import cast
 
-from koios_sim.domain.traversal.observation import observe
 from koios_sim.domain.traversal.operation import Waypoint
 from koios_sim.domain.traversal.world import Point
 from koios_sim.interfaces.operations import USAGE, execute
-from koios_sim.services.traversal.contracts import Feedback, PhysicalEvent
+from koios_sim.services.traversal.contracts import (
+    Feedback,
+    ManualCycleResult,
+    PhysicalEvent,
+)
 from koios_sim.services.traversal.manual_control import RoutePose
 from koios_sim.services.traversal.session import Session
+from koios_sim.services.traversal.snapshots import SessionSnapshot
 
 MAX_ADVANCE_MS = 250
 
@@ -46,16 +50,13 @@ class Bridge:
             execute(self._session, source, origin="godot")
         elif kind == "tick":
             raw = message.get("route_pose")
-            if raw is None:
-                self._tick(message)
-            else:
-                pose = _route_pose(raw)
-                if pose.elapsed_ms != _int(message, "elapsed_ms", 0):
-                    raise MessageError("pose interval must match tick interval")
-                before = self._session.stamp_ms
-                if not self._session.report_route_pose(pose) and self._session.stamp_ms == before:
-                    # A valid new clock interval still advances if its pose cannot be confirmed.
-                    self._tick(message)
+            pose = None if raw is None else _route_pose(raw)
+            elapsed = _int(message, "elapsed_ms", 0)
+            if pose is not None and pose.elapsed_ms != elapsed:
+                raise MessageError("pose interval must match tick interval")
+            if elapsed > MAX_ADVANCE_MS:
+                raise MessageError("tick exceeds the dev interval limit")
+            self._session.apply_tick(elapsed, pose)
         elif kind == "pause":
             self._session.set_paused(_bool(message, "paused"))
         elif kind == "manual_begin":
@@ -79,78 +80,66 @@ class Bridge:
             "seq": seq,
             "kind": "snapshot",
             "note": note,
-            "state": _snapshot(self._session),
+            "state": _snapshot(self._session.snapshot()),
             "feedback": [_feedback(entry) for entry in feedback[before:]],
         }
 
     def _manual_cycle(self, message: dict[str, object]) -> bool:
-        session = self._session
         point = Point(_number(message, "x_m"), _number(message, "y_m"))
         heading = _number(message, "heading")
         release = _bool(message, "release")
         lease = _text(message, "lease_id")
         drone = _text(message, "drone_id")
-        if (session.manual is None or session.manual.id != lease
-                or session.manual.drone_id != drone or session.paused
-                or _int(message, "stamp_ms", 0) != session.stamp_ms):
-            return False
-        self._tick(message)
-        return session.report_manual(lease, drone, session.stamp_ms, point, heading,
-                                     release=release)
-
-    def _tick(self, message: dict[str, object]) -> None:
-        elapsed = _int(message, "elapsed_ms", 0)
-        if elapsed > MAX_ADVANCE_MS:
+        # Timing field errors are reported only when the application admits that part of a cycle.
+        stamp = _optional_int(message, "stamp_ms")
+        elapsed = _optional_int(message, "elapsed_ms")
+        interval = elapsed if elapsed is not None and elapsed <= MAX_ADVANCE_MS else None
+        result = self._session.manual_cycle(lease, drone, stamp, interval, point, heading, release=release)
+        if result is ManualCycleResult.INVALID_STAMP:
+            raise MessageError("stamp_ms must be an integer >= 0")
+        if result is ManualCycleResult.INVALID_INTERVAL:
+            if elapsed is None:
+                raise MessageError("elapsed_ms must be an integer >= 0")
             raise MessageError("tick exceeds the dev interval limit")
-        self._session.advance(elapsed)
+        return result is ManualCycleResult.CONFIRMED
 
 
 def _feedback(value: Feedback) -> dict[str, object]:
     return asdict(value)
 
 
-def _snapshot(session: Session) -> dict[str, object]:
-    order = session.order
-    fraction = session.opening_fraction
-    active: dict[str, object] | None = None
-    if order is not None:
-        active = {
-            "command_id": order.command_id,
-            "step": order.index + 1,
-            "phase": order.phase,
-            "verb": order.current.verb,
-            "room_id": order.current.target_id,
-            "checkpoint_seen": order.crossed,
-            "waypoint_ready": order.segment_ms >= session.timing.waypoint_ms,
-        }
-    return {
-        "world": asdict(session.status()),
-        "stamp_ms": session.stamp_ms,
-        "paused": session.paused,
-        "opening_fraction": fraction,
-        "door_activity": _door_activity(session),
-        "door_energy_mj": {
-            "controller": session.controller_energy_mj,
-            "mechanism": session.mechanism_energy_mj,
-        },
-        "active": active,
-        "manual": None if session.manual is None else session.manual.id,
-        **_presentation(session, fraction),
+def _snapshot(value: SessionSnapshot) -> dict[str, object]:
+    active, door = value.active, value.door_activity
+    result = {
+        "world": asdict(value.world),
+        "stamp_ms": value.stamp_ms,
+        "paused": value.paused,
+        "opening_fraction": value.opening_fraction,
+        "door_activity": {
+            "command_id": door.command_id, "phase": "opening" if door.opening else "queued",
+            "door_id": door.door_id, "origin": door.origin,
+        } if door is not None else None,
+        "door_energy_mj": {"controller": value.controller_energy_mj, "mechanism": value.mechanism_energy_mj},
+        "active": {
+            "command_id": active.command_id, "step": active.step, "phase": active.phase,
+            "verb": active.current.verb, "room_id": active.current.target_id,
+            "checkpoint_seen": active.crossed, "waypoint_ready": active.waypoint_ready,
+        } if active is not None else None,
+        "manual": value.manual_lease,
     }
-
-
-def _door_activity(session: Session) -> dict[str, object] | None:
-    opening = session.opening
-    if opening is not None:
-        return {
-            "command_id": opening.command_id, "phase": "opening",
-            "door_id": session.world.door.id, "origin": opening.origin,
-        }
-    if session.pending_devices:
-        command_id, origin = session.pending_devices[0]
-        return {"command_id": command_id, "phase": "queued",
-                "door_id": session.world.door.id, "origin": origin}
-    return None
+    if value.steering is not None:
+        report, sensor = value.door_report, value.observation
+        result.update({
+            "door_report": {**asdict(report), "source": "controller"} if report is not None else None,
+            "sensor": asdict(sensor) if sensor is not None else None,
+            "discovered_markers": list(value.discovered_markers),
+            "steering": asdict(value.steering),
+            "completion": {
+                "verbs": sorted(USAGE), "deck": value.context, "slot": str(value.world.drone.slot),
+                "rooms": [room.id for room in value.world.rooms], "doors": [value.world.door.id],
+            },
+        })
+    return result
 
 
 def _event(payload: object) -> PhysicalEvent:
@@ -206,33 +195,9 @@ def _bool(source: dict[str, object], key: str) -> bool:
     return value
 
 
-def _presentation(session: Session, fraction: float) -> dict[str, object]:
-    world, sensing = session.world, session.sensing
-    facts = world.door.services
-    telemetry = (facts.controller_powered and facts.controller_healthy
-                 and facts.controller_data_connected)
-    door_report = {"position": world.door.position, "stamp_ms": session.stamp_ms,
-                   "source": "controller"} if telemetry else None
-    if sensing is None:
-        return {}
-    has_feed = world.drone.local_dcl_signal and world.drone.workstation_route_available
-    evidence = observe(world, sensing, fraction) if has_feed else None
-    if evidence is not None:
-        session.discovered_markers.update(marker.id for marker in evidence.visible_markers)
-    return {
-        "door_report": door_report,
-        "sensor": asdict(evidence) if evidence is not None else None,
-        "discovered_markers": sorted(session.discovered_markers),
-        "steering": {"speed_m_s": sensing.speed_m_s, "turn_deg_s": sensing.turn_deg_s,
-                     "body_radius_m": sensing.body_radius_m},
-        "completion": {
-            "verbs": sorted(USAGE),
-            "deck": session.context,
-            "slot": str(world.drone.slot),
-            "rooms": [room.id for room in world.rooms],
-            "doors": [world.door.id],
-        },
-    }
+def _optional_int(source: dict[str, object], key: str) -> int | None:
+    value = source.get(key)
+    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None
 
 
 def _route_pose(payload: object) -> RoutePose:
