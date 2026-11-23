@@ -7,7 +7,7 @@ from koios_sim.domain.traversal.world import Point, World
 
 
 @dataclass(frozen=True, slots=True)
-class Takeover:
+class RoutePose:
     command_id: str
     step: int
     stamp_ms: int

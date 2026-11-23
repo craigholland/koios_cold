@@ -10,7 +10,7 @@ from koios_sim.domain.traversal.operation import Waypoint
 from koios_sim.domain.traversal.world import Point
 from koios_sim.interfaces.operations import USAGE, execute
 from koios_sim.services.traversal.contracts import Feedback, PhysicalEvent
-from koios_sim.services.traversal.manual_control import Takeover
+from koios_sim.services.traversal.manual_control import RoutePose
 from koios_sim.services.traversal.session import Session
 
 MAX_ADVANCE_MS = 250
@@ -45,12 +45,22 @@ class Bridge:
                 raise MessageError("command length out of range")
             execute(self._session, source, origin="godot")
         elif kind == "tick":
-            self._tick(message)
+            raw = message.get("route_pose")
+            if raw is None:
+                self._tick(message)
+            else:
+                pose = _route_pose(raw)
+                if pose.elapsed_ms != _int(message, "elapsed_ms", 0):
+                    raise MessageError("pose interval must match tick interval")
+                before = self._session.stamp_ms
+                if not self._session.report_route_pose(pose) and self._session.stamp_ms == before:
+                    # A valid new clock interval still advances if its pose cannot be confirmed.
+                    self._tick(message)
         elif kind == "pause":
             self._session.set_paused(_bool(message, "paused"))
         elif kind == "manual_begin":
             raw = message.get("handoff")
-            handoff = None if raw is None else _handoff(raw)
+            handoff = None if raw is None else _route_pose(raw)
             if not self._session.begin_manual(_text(message, "drone_id"), handoff):
                 note = "Direct control unavailable."
         elif kind == "manual_cycle":
@@ -205,14 +215,14 @@ def _presentation(session: Session, fraction: float) -> dict[str, object]:
     }
 
 
-def _handoff(payload: object) -> Takeover:
+def _route_pose(payload: object) -> RoutePose:
     if not isinstance(payload, dict):
         raise MessageError("handoff must be an object")
     handoff = cast(dict[str, object], payload)
     elapsed = _int(handoff, "elapsed_ms", 0)
     if elapsed > MAX_ADVANCE_MS:
         raise MessageError("handoff exceeds the dev interval limit")
-    return Takeover(
+    return RoutePose(
         _text(handoff, "command_id"), _int(handoff, "step", 1),
         _int(handoff, "stamp_ms", 0), elapsed,
         Point(_number(handoff, "x_m"), _number(handoff, "y_m")),

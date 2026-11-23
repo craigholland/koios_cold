@@ -59,7 +59,11 @@ func _process(delta: float) -> void:
 	if clock_buffer >= TICK_MS:
 		var interval := int(clock_buffer)
 		clock_buffer -= interval
-		client.send("tick", {"elapsed_ms": interval})
+		var tick := {"elapsed_ms": interval}
+		var active: Variant = state.active
+		if active is Dictionary and active.phase == "running" and active.verb == "move" and view.manual_point_is_inside():
+			tick.route_pose = _route_pose(active, interval)
+		client.send("tick", tick)
 
 
 func _physics_process(delta: float) -> void:
@@ -198,16 +202,20 @@ func _control_requests() -> bool:
 		if active is Dictionary and active.phase == "running" and active.verb == "move":
 			if not view.manual_point_is_inside():
 				return false
-			var point := view.semantic_point()
 			var elapsed := int(clock_buffer)
-			request.handoff = {"command_id": active.command_id, "step": int(active.step),
-				"stamp_ms": int(state.stamp_ms), "elapsed_ms": elapsed,
-				"x_m": point.x, "y_m": point.y, "heading": view.heading}
+			request.handoff = _route_pose(active, elapsed)
 			clock_buffer -= elapsed
 		controls.armed = false
 		handoff_pending = client.send("manual_begin", request)
 		return handoff_pending
 	return false
+
+
+func _route_pose(active: Dictionary, elapsed: int) -> Dictionary:
+	var point := view.semantic_point()
+	return {"command_id": active.command_id, "step": int(active.step),
+		"stamp_ms": int(state.stamp_ms), "elapsed_ms": elapsed,
+		"x_m": point.x, "y_m": point.y, "heading": view.heading}
 
 
 func _input(event: InputEvent) -> void:

@@ -85,6 +85,9 @@ in Python. Manual pose reports carry the current direct-control ID and ship stam
 Takeover during a move reconciles the actual pose against the prior order before
 cancelling it. The shared fixture radius and actual leaf aperture determine crossing
 even during a sufficiently wide partial opening.
+During autonomous travel, the existing clock tick can carry one validated route
+pose. The same Python state drives current observation and the sensor cone; the
+sample does not count as arrival or add per-frame bridge calls.
 The provisional fixture defines speed, turn, light reach and sight angle, not new
 hardware ratings. One non-interactive marker tests limited discovery; its ID and
 location are not sent until observation permits them. Motion before confirmation is
@@ -106,6 +109,7 @@ After the install/import above, from the repository root:
 $launcher = 'from koios_sim.composition.live import launch; import sys; sys.exit(launch(sys.argv[1:]))'
 & $python -c $launcher $console --headless --path frontend --script res://tests/handoff_checks.gd
 & $python -c $launcher $console --headless --path frontend --script res://tests/handoff_checks.gd -- --partial
+& $python -c $launcher $console --headless --path frontend --script res://tests/handoff_checks.gd -- --sensing
 ```
 
 The smoke runs the actual scene, command service and movement, then exits

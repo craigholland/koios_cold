@@ -22,7 +22,7 @@ from koios_sim.services.traversal.contracts import (
     PhysicalEvent,
     Verb,
 )
-from koios_sim.services.traversal.manual_control import ManualControl, Takeover
+from koios_sim.services.traversal.manual_control import ManualControl, RoutePose
 from koios_sim.services.traversal.orders import Opening, Order
 from koios_sim.services.traversal.status import StatusSnapshot, get_status
 
@@ -118,7 +118,7 @@ class Session:
             return 1.0 - self.opening.remaining_ms / self.timing.opening_ms
         return 0.0
 
-    def begin_manual(self, drone_id: str, handoff: Takeover | None = None) -> bool:
+    def begin_manual(self, drone_id: str, handoff: RoutePose | None = None) -> bool:
         if (self.paused or self.sensing is None or self.manual is not None
                 or drone_id != self.world.drone.permanent_id
                 or not self.world.drone.workstation_route_available
@@ -126,7 +126,7 @@ class Session:
             return False
         moving = self._moving_order()
         if moving is not None or handoff is not None:
-            if moving is None or handoff is None or not self._reconcile_takeover(moving, handoff):
+            if moving is None or handoff is None or not self._reconcile_route_pose(moving, handoff):
                 return False
         self.order = None
         if self.opening is not None and self.opening.queued_step:
@@ -137,14 +137,20 @@ class Session:
                   drone=True)
         return True
 
-    def _reconcile_takeover(self, order: Order, handoff: Takeover) -> bool:
+    def report_route_pose(self, pose: RoutePose) -> bool:
+        """Reconcile sampled autonomous motion without completing an instruction."""
+        order = self._moving_order()
+        return not self.paused and order is not None and self._reconcile_route_pose(order, pose)
+
+    def _reconcile_route_pose(self, order: Order, handoff: RoutePose) -> bool:
         sensing = self.sensing
         d = self.world.drone
         if (sensing is None or handoff.command_id != order.command_id
                 or handoff.step != order.index + 1 or handoff.stamp_ms != self.stamp_ms
                 or not 0 <= handoff.heading < 360 or handoff.elapsed_ms < 0):
             return False
-        limit = sensing.speed_m_s * (order.travel_ms + handoff.elapsed_ms) / 1000 + 0.12
+        elapsed = order.travel_ms - order.last_pose_travel_ms + handoff.elapsed_ms
+        limit = sensing.speed_m_s * elapsed / 1000 + 0.12
         room = validated_room(self.world, handoff.point, limit,
                               self.opening_fraction, sensing.body_radius_m)
         if room is None or (room != d.room_id and (not order.crossed or room != order.current.target_id)):
@@ -155,6 +161,7 @@ class Session:
         self.world = replace(self.world, drone=replace(
             self.world.drone, room_id=room, location=handoff.point, heading_degrees=handoff.heading
         ))
+        order.last_pose_travel_ms = order.travel_ms
         return True
 
     def report_manual(self, lease_id: str, drone_id: str, stamp_ms: int, point: Point,
@@ -258,6 +265,7 @@ class Session:
             order.crossed = False
             order.segment_ms = 0
             order.travel_ms = 0
+            order.last_pose_travel_ms = 0
 
     def advance(self, elapsed_ms: int) -> None:
         if type(elapsed_ms) is not int or elapsed_ms < 0:

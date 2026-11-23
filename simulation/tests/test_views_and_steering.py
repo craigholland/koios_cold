@@ -7,7 +7,7 @@ from koios_sim.domain.traversal.world import DoorPosition, Point
 from koios_sim.interfaces.bridge import Bridge, _presentation
 from koios_sim.interfaces.operations import execute
 from koios_sim.services.traversal.contracts import PhysicalEvent
-from koios_sim.services.traversal.manual_control import Takeover
+from koios_sim.services.traversal.manual_control import RoutePose
 from koios_sim.services.traversal.session import Session
 
 
@@ -110,7 +110,7 @@ def test_handoff_validates_old_order_and_commits_pose_before_cancelling() -> Non
     old = session.order
     assert old is not None
     session.advance(250)
-    actual = Takeover(old.command_id, 1, 250, 30, Point(5.35, 3), 0)
+    actual = RoutePose(old.command_id, 1, 250, 30, Point(5.35, 3), 0)
     assert not session.begin_manual(world.drone.permanent_id, replace(actual, command_id="stale"))
     assert not session.begin_manual(world.drone.permanent_id, replace(actual, stamp_ms=249))
     assert not session.begin_manual(world.drone.permanent_id, replace(actual, point=Point(7, 3)))
@@ -136,3 +136,24 @@ def test_manual_aperture_uses_circular_body_width_during_opening() -> None:
     assert not session.report_manual(lease, d.permanent_id, 700, Point(8.1, 3.5), 0, release=False)
     assert session.report_manual(lease, d.permanent_id, 700, Point(8.1, 3), 0, release=True)
     assert session.world.drone.room_id == "R2"
+
+
+def test_autonomous_samples_gate_python_sensing_and_respect_active_order() -> None:
+    world, timing, sensing = load_live_scenario()
+    world = replace(world, door=replace(world.door, position=DoorPosition.OPEN))
+    session = Session(world, timing, sensing)
+    execute(session, "move 1 R2")
+    order = session.order
+    assert order is not None
+    route = RoutePose(order.command_id, 1, 0, 100, Point(4.5, 3), 0)
+    assert not session.report_route_pose(replace(route, step=2))
+    assert not session.report_route_pose(replace(route, point=Point(8.3, 3)))
+    assert session.stamp_ms == 0
+    assert session.report_route_pose(route)
+    assert session.order is order and session.status().drone.location == route.point
+    assert not session.report_route_pose(route)
+    assert not session.report_route_pose(replace(route, stamp_ms=100, point=Point(5.5, 3)))
+    observation = observe(session.world, sensing, session.opening_fraction)
+    assert observation.polygon[0] == route.point and observation.visible_markers == ()
+    assert session.stamp_ms == 100 and session.order is order
+    assert not any("ARRIVED" in record.text for record in session.feedback())
