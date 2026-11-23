@@ -1,0 +1,15 @@
+config_version=5
+
+[application]
+config/name="Koios Cold M0"
+run/main_scene="res://app/sandbox.tscn"
+config/features=PackedStringArray("4.6", "GL Compatibility")
+
+[display]
+window/size/viewport_width=800
+window/size/viewport_height=620
+window/stretch/mode="canvas_items"
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"

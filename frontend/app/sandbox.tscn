@@ -1,0 +1,41 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://app/sandbox.gd" id="1"]
+[ext_resource type="Script" path="res://features/traversal/room_view.gd" id="2"]
+
+[node name="Sandbox" type="Node"]
+script = ExtResource("1")
+
+[node name="RoomView" type="Node2D" parent="."]
+position = Vector2(48, 92)
+script = ExtResource("2")
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="Heading" type="Label" parent="HUD"]
+offset_left = 24.0
+offset_top = 16.0
+offset_right = 770.0
+text = "Koios Cold | M0 live development sandbox"
+
+[node name="Status" type="Label" parent="HUD"]
+offset_left = 24.0
+offset_top = 44.0
+offset_right = 775.0
+text = "Connecting to semantic process..."
+
+[node name="Output" type="RichTextLabel" parent="HUD"]
+offset_left = 24.0
+offset_top = 380.0
+offset_right = 776.0
+offset_bottom = 556.0
+scroll_following = true
+
+[node name="Command" type="LineEdit" parent="HUD"]
+offset_left = 24.0
+offset_top = 565.0
+offset_right = 776.0
+offset_bottom = 603.0
+placeholder_text = "Enter a command: move 1 R2, open D1, or help"
+max_length = 512
+editable = false
