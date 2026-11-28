@@ -19,6 +19,7 @@ This is the starting point for building Koios Cold. It brings the coding philoso
 | [Development profile](Authoritative/Identity/development_profile.md) | Applies the philosophy to Koios's simulation, presentation, source owners, and prototype boundaries. |
 | [Source organization](Authoritative/Identity/source_organization.md) | Defines where Koios application responsibilities, local contracts, and tests should live. |
 | [Agent workflow](Authoritative/Identity/agent_workflow.md) | Defines Craig, Lead Engineer, and Dot responsibilities, task intake, review, and handoff. |
+| [Lighthouse configuration](Authoritative/Identity/lighthouse.md) | Locates the portable definition, private binding boundary, and assisted handoff. |
 | [Verification contract](Authoritative/Identity/verification_contract.md) | Distinguishes executable checks from future verification requirements. |
 | [Local handbook contract](__ai__.md) | Defines this folder's maintenance and verification rules. |
 
