@@ -48,6 +48,7 @@ Provide durable development guidance and a small, dependency-free checker for th
 - `README.md`: contributor navigation and handbook scope.
 - `Authoritative/Canon/Architecture/`: reusable architectural guidance and supplements.
 - `Authoritative/Identity/`: Koios development profile, source organization, role workflow, and check requirements.
+- [Lighthouse configuration](Authoritative/Identity/lighthouse.md): portable project definition and private binding boundary.
 - `tools/check_docs.mjs`: scoped metadata, heading, and repository-local link validation.
 - `tools/tests/check_docs.test.mjs`: subprocess regression tests for the checker CLI.
 

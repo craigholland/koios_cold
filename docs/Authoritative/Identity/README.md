@@ -13,6 +13,7 @@ These documents apply the [portable architecture](../Canon/Architecture/README.m
 - [Development profile](development_profile.md): runtime responsibilities, source owners, prototype choices, and design-input availability.
 - [Source organization](source_organization.md): concrete placement conventions and a worked navigation example.
 - [Agent workflow](agent_workflow.md): contributor responsibilities, GitHub identities, task scope, review, and handoff.
+- [Lighthouse configuration](lighthouse.md): portable definition, private binding, and assisted workflow.
 - [Verification contract](verification_contract.md): executable handbook checks and the boundary around future application verification.
 
 Implementation work consumes these practices and the actual owning requirements identified by its task. This binding does not copy ship specifications or replace Game Design acceptance requirements.
