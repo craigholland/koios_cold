@@ -1,8 +1,8 @@
 ---
 title: "Development Handbook Local Contract"
 created_date: 2026-11-21
-update_date: 2026-11-21
-status: DRAFT
+update_date: 2026-11-23
+status: APPROVED
 tags: [local-contract, handbook-maintenance, documentation-validation, source-boundaries, developer-tools]
 ---
 
@@ -15,7 +15,7 @@ No hosted CI is configured by this handbook. Local validation and the checked co
 ## Scope
 
 - Folder: `docs/` and its descendants.
-- Included: handbook Markdown and `tools/check_docs.mjs`.
+- Included: handbook Markdown, `tools/check_docs.mjs`, and its regression suite.
 - Related entry point: root `AGENTS.md`, checked by the same validator.
 - Excluded: other project families, archives, assets, credentials, and application runtime code.
 
@@ -26,7 +26,8 @@ Provide durable development guidance and a small, dependency-free checker for th
 ## Architectural Rules
 
 - Canon owns reusable coding philosophy; Identity applies it to Koios.
-- Preserve the established subject owners named by the development profile.
+- Preserve the established subject owners named by the development profile. [Source organization](Authoritative/Identity/source_organization.md) owns the concrete Koios layout; keep entry points as navigation and distinguish planned homes from this contract's current scope.
+- `Authoritative/Identity/agent_workflow.md` owns the development/release branch policy; other handbook pages summarize it and link to that owner.
 - Keep new policies proposed until adopted within their stated scope.
 - Reconcile whole affected sections for current truth. Keep task history and check evidence in task/PR records.
 - The checker is developer tooling; it must not import game code, inspect credentials, call the network, or traverse outside its supplied repository root.
@@ -34,7 +35,7 @@ Provide durable development guidance and a small, dependency-free checker for th
 ## Allowed Dependencies
 
 - Handbook: relative links to committed documentation and explicit path inventories for not-yet-published owners.
-- Checker: Node.js standard library only.
+- Checker and regression suite: Node.js standard library only. The suite exercises the CLI in temporary fixtures.
 - No dependency on another checkout, private chat history, provider SDK, or secret.
 
 ## Public API / Key Exports
@@ -46,13 +47,15 @@ Provide durable development guidance and a small, dependency-free checker for th
 
 - `README.md`: contributor navigation and handbook scope.
 - `Authoritative/Canon/Architecture/`: reusable architectural guidance and supplements.
-- `Authoritative/Identity/`: Koios development profile, role workflow, and check requirements.
+- `Authoritative/Identity/`: Koios development profile, source organization, role workflow, and check requirements.
+- [Lighthouse configuration](Authoritative/Identity/lighthouse.md): portable project definition and private binding boundary.
 - `tools/check_docs.mjs`: scoped metadata, heading, and repository-local link validation.
+- `tools/tests/check_docs.test.mjs`: subprocess regression tests for the checker CLI.
 
 ## Known Gaps / Future-State Notes
 
 - The existing design families may be available only in the full authoring workspace until separately published.
-- Application dependency installation, Python quality gates, Godot checks, and hosted CI remain separate implementation tasks.
+- The simulation owns its Python setup and quality checks; the handbook validates links, not application behavior. Godot checks and hosted CI are not configured here.
 - This contract governs the initial handbook tree. Add narrower contracts when a distinct implementation concern warrants one.
 
 ## Cross-Folder Contracts
@@ -65,6 +68,7 @@ Provide durable development guidance and a small, dependency-free checker for th
 
 ```text
 node docs/tools/check_docs.mjs
+node --test docs/tools/tests/check_docs.test.mjs
 git diff --check
 git diff --cached --check
 ```

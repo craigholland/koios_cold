@@ -2,7 +2,7 @@
 title: "Craig Architecture Reference"
 created_date: 2026-11-21
 update_date: 2026-11-21
-status: DRAFT
+status: APPROVED
 tags: [craig-architecture, coding-guidance, dependency-direction, planning, local-contracts]
 ---
 

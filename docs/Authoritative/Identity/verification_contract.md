@@ -1,8 +1,8 @@
 ---
 title: "Koios Development Verification Contract"
 created_date: 2026-11-21
-update_date: 2026-11-21
-status: DRAFT
+update_date: 2026-11-23
+status: APPROVED
 tags: [documentation-validation, executable-checks, verification-evidence, test-readiness, final-head-freshness]
 ---
 
@@ -18,13 +18,14 @@ Run from the repository root:
 
 ```text
 node docs/tools/check_docs.mjs
+node --test docs/tools/tests/check_docs.test.mjs
 git diff --check
 git diff --cached --check
 ```
 
-The checker covers Markdown under `docs/` and root `AGENTS.md`. It checks front matter, date/status/tag fields, heading hierarchy, explicit-anchor collisions, and repository-local link targets and fragments. It ignores fenced examples and does not fetch external URLs, inspect design collections, or evaluate engineering and gameplay meaning.
+The checker covers Markdown under `docs/` and root `AGENTS.md`. It checks front matter, date/status/tag fields, heading hierarchy, explicit-anchor collisions, and repository-local link targets, exact path-component casing, and fragments. It ignores fenced examples and excludes same-line inline code spans from link checks. It does not fetch external URLs, inspect design collections, or evaluate engineering and gameplay meaning.
 
-Whitespace checks apply to unstaged and staged tracked changes respectively. Inspect `git status --short` and the explicit file inventory as well: a clean diff command does not prove that untracked files were reviewed or included.
+The regression suite runs the checker CLI against test-owned temporary handbook fixtures and checks both success and failure diagnostics. It does not change the repository handbook. Whitespace checks apply to unstaged and staged tracked changes respectively. Inspect `git status --short` and the explicit file inventory as well: a clean diff command does not prove that untracked files were reviewed or included.
 
 ## Semantic Documentation Review
 
@@ -33,23 +34,30 @@ Review scope and accuracy in addition to mechanical checks:
 - Each detailed rule has a clear owner and cross-references remain navigable.
 - Canon stays portable and Identity contains the actual Koios choices.
 - Documents distinguish accepted requirements, draft policies, unresolved inputs, and implemented behavior.
-- Local contracts describe current responsibilities rather than a progress log.
+- Local contracts describe current responsibilities rather than a progress log. From the task entry point, a contributor can trace the affected concept to its owner, public surface, and tests; review cohesion, placement, and inward dependencies against [source organization](source_organization.md).
 - Agent roles, actual authentication, technical permissions, and delegated authority remain distinct.
+- Task PRs target `development`; release promotion and tags follow the owning agent workflow.
 - A fresh contributor can locate the actual design sources required by the task.
 
 ## Application Verification Readiness
 
-This handbook does not configure a Python runtime, install packages, build Godot, or create application CI. Existing authoring-workspace tests and technical fixture specifications do not establish that they are present or executable in the initial GitHub clone.
+The installable headless Python M0 foundation has a developer status query, an Operations replay and a
+Ruff, mypy, and pytest baseline. Follow the [simulation setup and checks](../../../simulation/README.md#windows-setup-and-verification)
+from a clean environment. The Python-only checks exercise deterministic Operations, not the rendered scene,
+continuous Godot movement, inference or persistence. This handbook does not create hosted application CI.
 
-When application work is authorized, its task must establish the supported environment, dependency installation, and exact checks. The intended Python baseline is Ruff, mypy, and pytest, with headless domain tests, service tests through explicit fakes, and boundary/integration checks appropriate to the change.
-
-Godot presentation and continuous physics need their own scoped verification. A headless simulation pass does not establish rendering, control responsiveness, sound quality, or end-to-end bridge correctness. Inference behavior and provider availability need separately scoped checks and authored fallback coverage when implemented.
+The minimal live Godot/Python sandbox has its own [setup and verification](../../../frontend/README.md#verification).
+Godot presentation, focused steering and continuous physics need their own scoped verification. A headless simulation pass does not establish rendering, control responsiveness, sound quality, or end-to-end bridge correctness. Distinguish injected key/notification tests from native window focus and rendered checks.
+A Dummy-audio run exercises state only. Record non-Dummy downstream mix checks separately
+from measured physical output or listening. Inference behavior and provider availability need separately scoped checks and authored fallback coverage when implemented.
 
 Do not present proposed baseline commands as runnable until their configuration exists. Do not run deferred builds or fixtures merely because another document describes them.
 
 ## Evidence and Freshness
 
-For a PR, report the exact commands, cwd, results, checked commit, current head, and meaningful limitations. Keep secrets and live private payloads out of transcripts. A blocked or skipped check remains blocked or skipped.
+For a PR, report the exact commands, cwd, results, checked commit, current head, base branch, and meaningful limitations. Keep secrets and live private payloads out of transcripts. A blocked or skipped check remains blocked or skipped.
+
+Task verification covers the change against its `development` base. A release candidate needs verification appropriate to the complete promoted state and an exact commit record under [Release Promotion](agent_workflow.md#release-promotion). A task check or the existence of a version tag alone does not establish release readiness.
 
 If the branch changes after checking, inspect the intervening paths and determine which checks and review need refreshing. Verify the remote PR head after push. Hosted CI that does not exist or did not run cannot be claimed as passing.
 

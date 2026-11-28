@@ -2,7 +2,7 @@
 title: "Craig Architecture Planning and Decomposition"
 created_date: 2026-11-21
 update_date: 2026-11-21
-status: DRAFT
+status: APPROVED
 tags: [work-decomposition, task-contracts, architecture-discovery, pull-request-scope, integration-ownership, code-shape]
 ---
 

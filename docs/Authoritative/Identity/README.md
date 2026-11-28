@@ -1,8 +1,8 @@
 ---
 title: "Koios Development Identity"
 created_date: 2026-11-21
-update_date: 2026-11-21
-status: DRAFT
+update_date: 2026-11-22
+status: APPROVED
 tags: [koios-development, project-bindings, simulation-boundaries, agent-roles, executable-verification]
 ---
 
@@ -11,7 +11,9 @@ tags: [koios-development, project-bindings, simulation-boundaries, agent-roles, 
 These documents apply the [portable architecture](../Canon/Architecture/README.md) to Koios's development work.
 
 - [Development profile](development_profile.md): runtime responsibilities, source owners, prototype choices, and design-input availability.
+- [Source organization](source_organization.md): concrete placement conventions and a worked navigation example.
 - [Agent workflow](agent_workflow.md): contributor responsibilities, GitHub identities, task scope, review, and handoff.
+- [Lighthouse configuration](lighthouse.md): portable definition, private binding, and assisted workflow.
 - [Verification contract](verification_contract.md): executable handbook checks and the boundary around future application verification.
 
 Implementation work consumes these practices and the actual owning requirements identified by its task. This binding does not copy ship specifications or replace Game Design acceptance requirements.

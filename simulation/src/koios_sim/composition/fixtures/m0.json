@@ -1,0 +1,87 @@
+{
+  "classification": "provisional-development-fixture",
+  "deck_id": "m0",
+  "timing": {
+    "opening_ms": 2000,
+    "waypoint_ms": 200,
+    "idle_w": 10,
+    "travel_w": 50
+  },
+  "sensing": {
+    "reach_m": 6,
+    "light_m": 4.5,
+    "half_angle_deg": 54,
+    "speed_m_s": 5,
+    "turn_deg_s": 120,
+    "body_radius_m": 0.21428571428571427,
+    "markers": [
+      {"id": "M0-MARKER", "point": [14, 1]}
+    ]
+  },
+  "rooms": [
+    {
+      "id": "R1",
+      "min_corner": [
+        0,
+        0
+      ],
+      "max_corner": [
+        8,
+        6
+      ]
+    },
+    {
+      "id": "R2",
+      "min_corner": [
+        8,
+        0
+      ],
+      "max_corner": [
+        16,
+        6
+      ]
+    }
+  ],
+  "door": {
+    "id": "D1",
+    "rooms": [
+      "R1",
+      "R2"
+    ],
+    "gap_start": [
+      8,
+      2
+    ],
+    "gap_end": [
+      8,
+      4
+    ],
+    "position": "closed",
+    "jammed": false,
+    "services": {
+      "controller_id": "m0-d1-controller",
+      "controller_powered": true,
+      "controller_healthy": true,
+      "controller_data_connected": true,
+      "mechanism_powered": true,
+      "access_authorized": true,
+      "pressure_equal": true
+    }
+  },
+  "drone": {
+    "permanent_id": "fixture-m0-drone-01",
+    "display_name": "Drone 01",
+    "slot": 1,
+    "room_id": "R1",
+    "location": [
+      4,
+      3
+    ],
+    "heading_degrees": 0,
+    "capacity_wh": 120,
+    "charge_wh": 90,
+    "condition_pct": 100,
+    "local_dcl_signal": true,
+    "workstation_route_available": true
+  }
+}

@@ -1,0 +1,24 @@
+version = 1
+project = "koios-cold"
+repository = "craigholland/koios_cold"
+adapter = "github"
+
+[actors]
+owner = 12838844
+lead = 359712317
+implementer = 359713928
+
+[branches]
+integration = "development"
+release = "main"
+
+[labels]
+ready = "lighthouse:ready"
+blocked = "lighthouse:blocked"
+high = "lighthouse:priority:high"
+normal = "lighthouse:priority:normal"
+low = "lighthouse:priority:low"
+
+[verification]
+directory = "."
+commands = ["node docs/tools/check_docs.mjs", "node --test docs/tools/tests/check_docs.test.mjs", "git diff --check", "git diff --cached --check"]

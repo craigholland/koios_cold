@@ -2,7 +2,7 @@
 title: "Craig Architecture AI Contributor Guidance"
 created_date: 2026-11-21
 update_date: 2026-11-21
-status: DRAFT
+status: APPROVED
 tags: [ai-contributors, architectural-review, local-contracts, task-intake, evidence, scope-discipline]
 ---
 

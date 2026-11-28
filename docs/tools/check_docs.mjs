@@ -27,6 +27,60 @@ function visibleLines(text) {
   });
 }
 
+function closingBackticks(line) {
+  const runs = [...line.matchAll(/`+/g)];
+  const nextByLength = new Map();
+  const closing = new Map();
+  for (let i = runs.length - 1; i >= 0; i--) {
+    const { 0: run, index } = runs[i];
+    const end = nextByLength.get(run.length);
+    if (end !== undefined) closing.set(index, end);
+    nextByLength.set(run.length, index + run.length);
+  }
+  return closing;
+}
+
+function isEscaped(line, index) {
+  let before = index;
+  while (before > 0 && line[before - 1] === '\\') before--;
+  return (index - before) % 2 !== 0;
+}
+
+// Keep link destinations verbatim. Once a link is recognized, skip its
+// destination entirely when looking for the next inline code opener.
+function* linkDestinations(line) {
+  const closing = closingBackticks(line);
+  const starts = /`+|!?\[/g;
+  const labelParts = /`+|\]/g;
+  const destination = /\]\((?:<([^>]+)>|([^\s)]+))(?:\s+["'][^"']*["'])?\)/y;
+  let start;
+  while ((start = starts.exec(line))) {
+    if (start[0][0] === '`') {
+      if (!isEscaped(line, start.index)) {
+        starts.lastIndex = closing.get(start.index) ?? starts.lastIndex;
+      }
+      continue;
+    }
+    labelParts.lastIndex = starts.lastIndex;
+    let part;
+    while ((part = labelParts.exec(line))) {
+      if (part[0][0] === '`') {
+        if (!isEscaped(line, part.index)) {
+          labelParts.lastIndex = closing.get(part.index) ?? labelParts.lastIndex;
+        }
+        continue;
+      }
+      destination.lastIndex = part.index;
+      const link = destination.exec(line);
+      if (link) {
+        yield link[1] ?? link[2];
+        starts.lastIndex = destination.lastIndex;
+      }
+      break;
+    }
+  }
+}
+
 function headingSlug(text) {
   return text.replace(/<[^>]*>/g, '').toLowerCase()
     .replace(/[^\p{L}\p{N}\p{M}_\-\s]/gu, '').replace(/\s/g, '-');
@@ -104,10 +158,8 @@ class HandbookValidator {
   }
 
   checkLinks(path, document) {
-    const links = /!?\[[^\]]*\]\((?:<([^>]+)>|([^\s)]+))(?:\s+["'][^"']*["'])?\)/g;
     for (const line of document.lines) {
-      for (const match of line.matchAll(links)) {
-        const raw = match[1] ?? match[2];
+      for (const raw of linkDestinations(line)) {
         if (/^[a-z][a-z\d+.-]*:/i.test(raw) || raw.startsWith('//')) continue;
         this.linkCount++;
         try {
@@ -127,6 +179,11 @@ class HandbookValidator {
             this.error(path, `link resolves outside repository: ${raw}`);
             continue;
           }
+          if (!this.hasExactPathSpelling(target)) {
+            this.error(path, `link path casing differs: ${raw}`);
+            continue;
+          }
+
           if (fragment && extname(target) === '.md' && !this.inspect(target, false).anchors.has(fragment)) {
             this.error(path, `missing heading/anchor: ${raw}`);
           }
@@ -135,6 +192,17 @@ class HandbookValidator {
         }
       }
     }
+  }
+
+  hasExactPathSpelling(target) {
+    const pathFromRoot = relative(this.root, target);
+    if (!pathFromRoot) return true;
+    let parent = this.root;
+    for (const component of pathFromRoot.split(sep)) {
+      if (!readdirSync(parent).includes(component)) return false;
+      parent = resolve(parent, component);
+    }
+    return true;
   }
 
   contains(path) {

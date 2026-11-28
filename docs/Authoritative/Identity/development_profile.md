@@ -1,8 +1,8 @@
 ---
 title: "Koios Development Profile"
 created_date: 2026-11-21
-update_date: 2026-11-21
-status: DRAFT
+update_date: 2026-11-22
+status: APPROVED
 tags: [koios-runtime, python-simulation, godot-presentation, authoritative-state, prototype-boundaries, source-availability]
 ---
 
@@ -60,6 +60,8 @@ Before implementation or substantive requirements review, the work packet must i
 Do not substitute private memory, this inventory, or an invented approximation for the actual requirement. Publishing further source collections is a separate scoped action, especially for assets and unpublished campaign material.
 
 ## Local Code Contracts
+
+Use [source organization](source_organization.md) to locate the planned implementation homes for these responsibilities. This profile continues to own runtime authority and design-source availability.
 
 Add or reconcile `__ai__.md` files as durable implementation concerns emerge. Follow the [local contract standard](../Canon/Architecture/Craig-Architecture-__ai__-Template.md). Use [Python guidance](../Canon/Architecture/Craig-Architecture-Python.md) where Python is involved.
 

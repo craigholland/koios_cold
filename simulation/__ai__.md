@@ -1,0 +1,63 @@
+---
+title: "Koios Simulation Local Contract"
+created_date: 2026-11-23
+update_date: 2026-11-23
+status: APPROVED
+tags: [simulation, m0, local-contract, headless-checks]
+---
+
+# Koios Simulation Local Contract
+
+## Last Verified (CI)
+
+No hosted application CI is configured. Use the PR handoff for executed local results.
+
+## Scope and Purpose
+
+Own the headless Python M0 simulation, its developer query/replay, and its test fixture.
+The deterministic M0 Operations subset is available headlessly and through the
+[live Godot sandbox](../frontend/README.md). Godot owns continuous physics;
+persistence and campaign content remain outside this implementation.
+
+## Dependencies and Architectural Rules
+
+Domain imports the standard library only and does not perform filesystem or runtime
+setup. Services consume domain types. Interfaces format application results.
+Composition binds the package resource and developer entry point. Do not read
+developer fixture files from inward layers or create an independent frontend world.
+
+## Public API and File Index
+
+- `domain/traversal/world.py`: canonical in-memory world and invariant checks.
+- `services/traversal/status.py`: read-only `get_status(world)` application query.
+- `domain/traversal/operation.py`: route, door, fixture timing and resource predicates.
+- `services/traversal/session.py` owns application operations: atomic command admission,
+  clock and resource accounting, order/opening and lease lifecycle, physical reconciliation,
+  and retained discovery. `orders.py` contains its internal mutable work records.
+- `services/traversal/commands.py` binds addresses against immutable facts and formats
+  Operations inspection without owning work. `contracts.py` defines typed application
+  inputs and results, including physical heading and manual-cycle admission outcomes.
+- `services/traversal/snapshots.py` defines frozen read models for work, door activity,
+  telemetry, steering, current observation, and retained static marker IDs/positions. `Session.snapshot()`
+  and `feedback()` do not advance, discover or expose mutable work.
+- `domain/traversal/observation.py` and `manual.py`: bounded sensing/occlusion,
+  and manual pose geometry. `services/traversal/manual_control.py` reconciles
+  only the active direct-control lease; the session owns discovery and authority.
+- `interfaces/cli.py`: developer JSON status output; `interfaces/operations.py`: grammar.
+- `composition/replay.py`: deterministic developer command and physical-event replay.
+- `composition/live.py`: starts and owns the isolated frontend child and loopback socket.
+- `interfaces/bridge.py` owns ordered wire-v1 delivery, handshake validation,
+  dispatch and feedback delivery cursors; `interfaces/frames.py` owns byte framing.
+  `interfaces/live_snapshot.py` serializes detached values and preserves the
+  optional presentation group. Neither adapter can reconcile physics, discover
+  evidence or advance a second clock.
+- `composition/fixture.py` and `composition/fixtures/m0.json`: decode and instantiate the
+  provisional definition; geometry and initial values have one owner.
+- `composition/main.py`: installed developer entry point.
+- `tests/`: fixture, Operations, application-boundary/wire, AST import-direction and CLI checks.
+
+## Verification Contract
+
+Use [the installation and check commands](README.md#windows-setup-and-verification).
+Report the actual Python version, checked head, and skipped checks. This local contract
+does not adopt production hardware values or certify Godot or hosted CI.

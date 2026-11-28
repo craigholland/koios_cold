@@ -2,7 +2,7 @@
 title: "Craig Architecture Local Contract Standard"
 created_date: 2026-11-21
 update_date: 2026-11-21
-status: DRAFT
+status: APPROVED
 tags: [local-contracts, folder-ownership, ai-guidance, dependency-boundaries, verification-contracts]
 ---
 
